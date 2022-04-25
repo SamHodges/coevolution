@@ -1,4 +1,4 @@
-(ns propeller.main_coevolution
+(ns propeller.main-coevolution
   (:require [propeller.genome :as genome]
             [propeller.gp :as gp]
             [propeller.selection :as selection]
@@ -7,7 +7,6 @@
             [propeller.push.interpreter :as interpreter]
             [propeller.push.state :as state]))
 
-(ns coevolution.core)
 
 ; TEACHER
 ; ingredients- total test set, eg regression input/outputs
@@ -154,5 +153,24 @@
     (take n (unpair-variance-and-test-case (sort-by #(first %)
                                                     (pair-variance-and-test-case test-case-performance all-test-cases))))
     ))
+
+
+
+(require '[propeller.problems.simple-regression :as regression])
+
+(gp/gp {:instructions            regression/instructions
+          :error-function          regression/error-function
+          :training-data           (:train regression/train-and-test-data)
+          :testing-data            (:test regression/train-and-test-data)
+          :max-generations         500
+          :population-size         500
+          :max-initial-plushy-size 100
+          :step-limit              200
+          :parent-selection        :tournament
+          :tournament-size         5
+          :umad-rate               0.01
+          :variation               {:umad      1.0
+                                    :crossover 0.0}
+          :elitism                 false})
 
 
