@@ -164,19 +164,32 @@
 
 
 
-(gp/gp {:instructions            regression/instructions
-          :error-function          regression/error-function
-          :training-data           all-train-cases
-          :testing-data            (:test regression/train-and-test-data)
-          :max-generations         500
-          :population-size         500
-          :max-initial-plushy-size 100
-          :step-limit              200
-          :parent-selection        :tournament
-          :tournament-size         5
-          :umad-rate               0.01
-          :variation               {:umad      1.0
-                                    :crossover 0.0}
-          :elitism                 false})
+
+(defn main [student-population-size generations train-cases semester-length]
+  (loop [student-population (repeatedly student-population-size
+                                        #(new-student-individual))
+         teacher-population (repeatedly teacher-population-size
+                                        #(new-teacher-individual))
+         generation 0]
+    ; report here potentially?
+    (if (> generation generations)
+      ; Yes:
+      ; evolve students
+      ; run eval on all students
+      ; evolve teachers
+      ;No:
+      ; return everything
+      )))
+
+
+
+
+
+
+
+
+
+
+
 
 
