@@ -85,6 +85,13 @@
 ; this corresponds to another test: [5 214 3 12 42 5 3 ...]
 ;]
 
+
+; make initial test cases
+; change amount of cases by going to function in simple regression
+(require '[propeller.problems.simple-regression :as regression])
+(def all-train-cases (:train regression/train-and-test-data))
+
+
 ; Random test subset
 (defn take-n-random [all-test-cases, test-case-performance, n]
   (if (> n (count all-test-cases))
@@ -156,11 +163,10 @@
 
 
 
-(require '[propeller.problems.simple-regression :as regression])
 
 (gp/gp {:instructions            regression/instructions
           :error-function          regression/error-function
-          :training-data           (:train regression/train-and-test-data)
+          :training-data           all-train-cases
           :testing-data            (:test regression/train-and-test-data)
           :max-generations         500
           :population-size         500
