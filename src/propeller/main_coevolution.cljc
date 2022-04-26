@@ -209,12 +209,16 @@
 
 
 
-
-
-
-
-
-
+; ##########################################################################
+; ##########################################################################
+; ##########################################################################
+; ##########################################################################
+; JORDY'S NEW STUFF
+; WORKING TEACHERS !!
+; ##########################################################################
+; ##########################################################################
+; ##########################################################################
+; ##########################################################################
 
 
 (ns propeller.main_coevolution
@@ -339,7 +343,14 @@
     ))
 
 
+
 ; Helper functions to sort by variance
+(defn find-largest [single-test-case-performance]
+  (reduce #(if (> %1 %2) %1 %2) single-test-case-performance))
+
+(defn find-variance [test-case-performance]
+  (map - (map find-largest test-case-performance) (map find-smallest test-case-performance)))
+
 (defn pair-variance-and-test-case [test-case-performance, all-test-cases]
   (map #(concat [%1] [%2])
        (find-variance test-case-performance)
@@ -351,11 +362,6 @@
 (defn find-smallest [single-test-case-performance]
   (reduce #(if (< %1 %2) %1 %2) single-test-case-performance))
 
-(defn find-largest [single-test-case-performance]
-  (reduce #(if (> %1 %2) %1 %2) single-test-case-performance))
-
-(defn find-variance [test-case-performance]
-  (map - (map find-largest test-case-performance) (map find-smallest test-case-performance)))
 
 
 ; Most Variant
@@ -400,13 +406,18 @@
   ;i.e. when we want to get n test cases from a given teacher,
   ;we choose 40% of those cases from the first function in the list,
   ;30% from the second, etc.
-  (vec [40.0 30.0 20.0 10.0 0.0]))
+  (vec [50.0 50.0 0.0 0.0 0.0]))
 
-(defn random-from-probabilities [prob]
+(defn random-from-probabilities [prob-vector]
   ;prob: [0.42, 0.21, ...]
+  ;https://stackoverflow.com/questions/14464011/idiomatic-clojure-for-picking-between-random-weighted-choices
   ;returns index randomly chosen by prob
-  ;how the hell do I do this
-  )
+  (let [total (reduce + prob-vector)
+        r (rand total)]
+    (loop [i 0 sum 0]
+      (if (< r (+ (prob-vector i) sum))
+        i
+        (recur (inc i) (+ (prob-vector i) sum))))))
 
 
 (defn create-random-teacher-genome []
@@ -415,21 +426,75 @@
 (defn teacher-to-cases [teacher-genome, all-test-cases, test-case-performance, num-test-cases]
   ;returns list of n test cases, chosen according to the teacher's genome
   (loop [remaining-test-cases all-test-cases
+         remaining-test-case-performance test-case-performance
          num-left-to-choose num-test-cases
          final-set-of-cases (vector)]
-    ;pick random index in teacher-genome from probabilities
-    ;use the function at that index to choose a case from remaining-test-cases
-    ;if remaining-test-cases = 1:
-    ;   final-set-of-cases conjed with new test case
-    ;else recur with
-    ;   (remove the chosen case from remaining-test-cases, (- num-left-to-choose 1), final-set-of-cases conjed with new test case)
-    )
+    (let [chosen-feature-function (teacher-genome (random-from-probabilities vector-of-weights))
+          chosen-test-case (first (chosen-feature-function remaining-test-cases, remaining-test-case-performance, 1))
+          chosen-case-index (.indexOf remaining-test-cases chosen-test-case)
+          new-set-of-cases (conj final-set-of-cases chosen-test-case)]
+      (do
+        ;(println "current test case, index, case population, performance")
+        ;(println chosen-test-case)
+        ;(println chosen-case-index)
+        ;(println remaining-test-cases)
+        ;(println remaining-test-case-performance)
+        ;(println "next case population, performance")
+        ;(println (vec (remove #(= % chosen-test-case) remaining-test-cases)))
+        ;(println (vec (concat (subvec remaining-test-case-performance 0 chosen-case-index)
+        ;                      (subvec remaining-test-case-performance (+ chosen-case-index 1) (count remaining-test-case-performance)))))
 
+        (if (= 1 num-left-to-choose)
+          ;exit the loop
+          new-set-of-cases
+          ;recur
+          (recur
+            ;set of test cases with chosen one removed
+            (vec (remove #(= % chosen-test-case) remaining-test-cases))
+
+            (vec (concat (subvec remaining-test-case-performance 0 chosen-case-index)
+                         (subvec remaining-test-case-performance (+ chosen-case-index 1) (count remaining-test-case-performance))))
+
+            (- num-left-to-choose 1)
+            new-set-of-cases))
+
+
+        ;pick random index in teacher-genome from probabilities
+        ;use the function at that index to choose a case from remaining-test-cases
+        ;if remaining-test-cases = 1:
+        ;   final-set-of-cases conjed with new test case
+        ;else recur with
+        ;   (remove the chosen case from remaining-test-cases, (- num-left-to-choose 1), final-set-of-cases conjed with new test case)
+        )
+
+      )
+    )
   )
 
+(def example-test-case-performance
+  [
+   [10 6 0 5 7] ;total error: 28
+   [14 2 4 9 10]
+   [0 5 3 8 11] ;total error: 27
+   [8 9 14 20 17] ;total error: 68
+   [4 10 19 5 3]
+   [11 7 18 6 1]
+   [15 16 2 13 12] ;total error: 58
+  ])
 
+(def example-test-cases
+  [{:input1 [4] :output1 [3]}
+   {:input1 [2] :output1 [-3]}
+   {:input1 [1] :output1 [1]}
+   {:input1 [20] :output1 [12]}
+   {:input1 [16] :output1 [-6]}
+   {:input1 [7] :output1 [16]}
+   {:input1 [-5] :output1 [21]}
+   ])
 
+(def all-easiest-genome
+  [take-n-hardest, take-n-easiest, take-n-most-variant, take-n-least-variant, take-n-random])
 
-
+ ;_(teacher-to-cases all-easiest-genome example-test-cases example-test-case-performance 2)
 
 
