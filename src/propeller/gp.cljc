@@ -29,9 +29,29 @@
                             :average-total-error   (float (/ (reduce + (map :total-error pop)) (count pop)))})
     (println)))
 
+
+(defn initial-gp
+  "Returns initial population "
+  [{:keys [population-size max-generations error-function instructions
+           max-initial-plushy-size solution-error-threshold mapper]
+    :or   {solution-error-threshold 0.0
+           ;; The `mapper` will perform a `map`-like operation to apply a function to every individual
+           ;; in the population. The default is `map` but other options include `mapv`, or `pmap`.
+           mapper #?(:clj pmap :cljs map)}
+    :as   argmap}]
+
+  (prn {:starting-args (update (update argmap :error-function str) :instructions str)})
+  (println)
+  (let [population (mapper
+                    (fn [_] {:plushy (genome/make-random-plushy instructions max-initial-plushy-size)})
+                    (range population-size))]
+    population
+    )
+  )
+
 (defn gp
   "Main GP loop."
-  [{:keys [population-size max-generations error-function instructions
+  [{:keys [population population-size max-generations error-function instructions
            max-initial-plushy-size solution-error-threshold mapper]
     :or   {solution-error-threshold 0.0
            ;; The `mapper` will perform a `map`-like operation to apply a function to every individual
@@ -43,9 +63,7 @@
   (println)
   ;;
   (loop [generation 0
-         population (mapper
-                      (fn [_] {:plushy (genome/make-random-plushy instructions max-initial-plushy-size)})
-                      (range population-size))]
+         population population]
     (let [evaluated-pop (sort-by :total-error
                                  (mapper
                                    (partial error-function argmap (:training-data argmap))
@@ -65,7 +83,9 @@
                 (prn {:total-test-error-simplified (:total-error (error-function argmap (:testing-data argmap) (hash-map :plushy simplified-plushy)))}))))
         ;;
         (>= generation max-generations)
-        nil
+        (do (print "This is the pop:")
+            (println)
+            population)
         ;;
         :else (recur (inc generation)
                      (if (:elitism argmap)
@@ -74,3 +94,51 @@
                              (first evaluated-pop))
                        (repeatedly population-size
                                    #(variation/new-individual evaluated-pop argmap))))))))
+
+
+;(defn gp-old
+;  "Main GP loop."
+;  [{:keys [population-size max-generations error-function instructions
+;           max-initial-plushy-size solution-error-threshold mapper]
+;    :or   {solution-error-threshold 0.0
+;           ;; The `mapper` will perform a `map`-like operation to apply a function to every individual
+;           ;; in the population. The default is `map` but other options include `mapv`, or `pmap`.
+;           mapper #?(:clj pmap :cljs map)}
+;    :as   argmap}]
+;  ;;
+;  (prn {:starting-args (update (update argmap :error-function str) :instructions str)})
+;  (println)
+;  ;;
+;  (loop [generation 0
+;         population (mapper
+;                      (fn [_] {:plushy (genome/make-random-plushy instructions max-initial-plushy-size)})
+;                      (range population-size))]
+;    (let [evaluated-pop (sort-by :total-error
+;                                 (mapper
+;                                   (partial error-function argmap (:training-data argmap))
+;                                   population))
+;          best-individual (first evaluated-pop)]
+;      (if (:custom-report argmap)
+;        ((:custom-report argmap) evaluated-pop generation argmap)
+;        (report evaluated-pop generation argmap))
+;      (cond
+;        ;; Success on training cases is verified on testing cases
+;        (<= (:total-error best-individual) solution-error-threshold)
+;        (do (prn {:success-generation generation})
+;            (prn {:total-test-error
+;                  (:total-error (error-function argmap (:testing-data argmap) best-individual))})
+;            (when (:simplification? argmap)
+;              (let [simplified-plushy (simplification/auto-simplify-plushy (:plushy best-individual) error-function argmap)]
+;                (prn {:total-test-error-simplified (:total-error (error-function argmap (:testing-data argmap) (hash-map :plushy simplified-plushy)))}))))
+;        ;;
+;        (>= generation max-generations)
+;        (do (print "this is the pop")
+;            population)
+;        ;;
+;        :else (recur (inc generation)
+;                     (if (:elitism argmap)
+;                       (conj (repeatedly (dec population-size)
+;                                         #(variation/new-individual evaluated-pop argmap))
+;                             (first evaluated-pop))
+;                       (repeatedly population-size
+;                                   #(variation/new-individual evaluated-pop argmap))))))))
