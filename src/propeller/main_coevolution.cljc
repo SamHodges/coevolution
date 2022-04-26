@@ -187,6 +187,14 @@
 
 
 
+[[2 5 6 7 ]
+ [0 0 1 3]
+ [1 2 3 4]]
+
+[(testcase1) testcase2 testcase3]
+
+
+
 
 
 (defn run-gp-loop [all-train-cases all-test-cases students] (gp/gp {:instructions            regression/instructions
