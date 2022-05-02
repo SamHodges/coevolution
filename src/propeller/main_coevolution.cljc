@@ -87,7 +87,8 @@
 
 
 ; gp loop- the evolving call
-(defn run-gp-loop [all-train-cases all-test-cases students] (gp/gp {:instructions            regression/instructions
+(defn run-gp-loop [all-train-cases all-test-cases students]
+  (gp/gp {:instructions            regression/instructions
           :error-function          regression/error-function
           :training-data           all-train-cases
           :testing-data            (:test regression/train-and-test-data)
@@ -103,14 +104,32 @@
           :elitism                 false})
   )
 
+(defn run-gp-eval [all-train-cases all-test-cases students]
+     (gp/gp {:instructions            regression/instructions
+             :error-function          regression/error-function
+             :training-data           all-train-cases
+             :testing-data            (:test regression/train-and-test-data)
+             :max-generations         1
+             :population-size         500
+             :max-initial-plushy-size 100
+             :step-limit              200
+             :parent-selection        :tournament
+             :tournament-size         5
+             :umad-rate               0.01
+             :variation               {:umad      1.0
+                                       :crossover 0.0}
+             :elitism                 false})
+     )
+
+
 ; evolve students
 (defn evolve-students [teacher-population student-population]
   (map #(run-gp-loop %2 %2 %1) (partition (count teacher-population) (shuffle student-population)) teacher-population)
   )
 
 ; evaluate students
-(defn evaluate-students [all-train-cases all-test-cases student-population]
-  (run-gp-loop all-train-cases all-test-cases student-population))
+(defn evaluate-students [all-test-cases student-population]
+  (run-gp-eval all-test-cases all-test-cases student-population))
 
 ; main loop
 ; TODO: combine evolving stuff so that the output of 1 is passed to the next
@@ -124,10 +143,11 @@
     (if (< generation generations)
       ; Yes
       (recur
-        (evaluate-students all-train-cases all-test-cases (evolve-students teacher-population student-population))
-        (evolve-teacher )
-        (inc generation))
-        (evaluate-students all-train-cases all-test-cases student-population)
+        (let [new-student-population (evolve-students teacher-population student-population)]
+        new-student-population
+        (map #(evolve-teacher) teacher-population)
+        (inc generation)))
+      (evaluate-students all-test-cases  student-population)
       )))
 
 ; normalizing function
