@@ -133,11 +133,12 @@
 
 ; main loop
 ; TODO: combine evolving stuff so that the output of 1 is passed to the next
+; TODO: rewrite new-student individual so it works with init-gp
 (defn main [student-population-size generations train-cases semester-length]
   (loop [student-population (repeatedly student-population-size
                                         #(new-student-individual))
          teacher-population (repeatedly teacher-population-size
-                                        #(new-teacher-individual))
+                                        #(create-random-teacher-genome))
          generation 0]
     ; report here potentially?
     (if (< generation generations)
@@ -145,9 +146,9 @@
       (recur
         (let [new-student-population (evolve-students teacher-population student-population)]
         new-student-population
-        (map #(evolve-teacher) teacher-population)
+        teacher-population; (map #(evolve-teacher) teacher-population (partition (count teacher-population) new-student-population))
         (inc generation)))
-      (evaluate-students all-test-cases  student-population)
+      (evaluate-students all-test-cases student-population)
       )))
 
 ; normalizing function
