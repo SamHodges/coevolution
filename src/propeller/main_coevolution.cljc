@@ -103,8 +103,16 @@
           :elitism                 false})
   )
 
+; evolve students
+(defn evolve-students [teacher-population student-population]
+  (map #(run-gp-loop %2 %2 %1) (partition (count teacher-population) (shuffle student-population)) teacher-population)
+  )
+
+; evaluate students
+(defn evaluate-students [all-train-cases all-test-cases student-population]
+  (run-gp-loop all-train-cases all-test-cases student-population))
+
 ; main loop
-; TODO: finish main loop- evolve students + return
 ; TODO: combine evolving stuff so that the output of 1 is passed to the next
 (defn main [student-population-size generations train-cases semester-length]
   (loop [student-population (repeatedly student-population-size
@@ -114,23 +122,13 @@
          generation 0]
     ; report here potentially?
     (if (< generation generations)
-      ; Yes:
-      (evaluate-students all-train-cases all-test-cases (evolve-students teacher-population student-population))
-      ; TODO: evolve teachers function
-
-      ;No:
-      ; return everything
-
+      ; Yes
+      (recur
+        (evaluate-students all-train-cases all-test-cases (evolve-students teacher-population student-population))
+        (evolve-teacher )
+        (inc generation))
+        (evaluate-students all-train-cases all-test-cases student-population)
       )))
-
-; evolve students
-(defn evolve-students [teacher-population student-population]
-  (map #(run-gp-loop %2 %2 %1) (partition (count teacher-population) (shuffle student-population)) teacher-population)
-  )
-
-; evaluate students
-(defn evaluate-students [all-train-cases all-test-cases student-population]
-  (run-gp-loop all-train-cases all-test-cases student-population))
 
 ; normalizing function
 (defn normalize [v]
