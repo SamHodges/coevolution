@@ -254,4 +254,7 @@
 (def all-easiest-genome
   [take-n-easiest, take-n-hardest, take-n-most-variant, take-n-least-variant, take-n-random])
 
+(def all-random-genome
+  [take-n-random, take-n-hardest, take-n-most-variant, take-n-least-variant, take-n-easiest])
+
 ;_(teacher-to-cases all-easiest-genome example-test-cases example-test-case-performance 2)
