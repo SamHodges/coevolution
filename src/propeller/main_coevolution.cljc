@@ -6,7 +6,8 @@
             [propeller.variation :as variation]
             [propeller.push.instructions :as instructions]
             [propeller.push.interpreter :as interpreter]
-            [propeller.push.state :as state]))
+            [propeller.push.state :as state]
+            [propeller.utils :as utils]))
 
 ; make initial test cases
 ; TODO: change amount of cases to whatever we end up waiting
@@ -87,14 +88,15 @@
 
 
 ; gp loop- the evolving call
-(defn run-gp-loop [all-train-cases all-test-cases students]
+; calls gp loop when we want to evolve the students
+(defn run-gp-loop [students teacher-cases]
   (gp/gp {:instructions            regression/instructions
           :error-function          regression/error-function
-          :training-data           all-train-cases
+          :training-data           teacher-cases
           :testing-data            (:test regression/train-and-test-data)
           :max-generations         500
-          :population-size         500
-          :max-initial-plushy-size 100
+          :population-size         (count students)
+          :population              students
           :step-limit              200
           :parent-selection        :tournament
           :tournament-size         5
@@ -104,14 +106,14 @@
           :elitism                 false})
   )
 
-(defn run-gp-eval [all-train-cases all-test-cases students]
-     (gp/gp {:instructions            regression/instructions
-             :error-function          regression/error-function
-             :training-data           all-train-cases
+; calls gp loop just because it's also a hacky way to get the test scores
+(defn run-gp-eval [students teacher-cases]
+     (gp/gp {:error-function          regression/error-function
+             :training-data           teacher-cases
              :testing-data            (:test regression/train-and-test-data)
              :max-generations         1
-             :population-size         500
-             :max-initial-plushy-size 100
+             :population              students
+             :population-size         (count students)
              :step-limit              200
              :parent-selection        :tournament
              :tournament-size         5
@@ -121,33 +123,62 @@
              :elitism                 false})
      )
 
+; make a random plushy for the students
+(defn make-random-student
+  [max-initial-plushy-size]
+  ; make as many students as specified
+  (repeatedly
+    (rand-int max-initial-plushy-size)
+    ; choose random regression options to make students
+    #(utils/random-instruction regression/instructions)))
+
 
 ; evolve students
 (defn evolve-students [teacher-population student-population]
-  (map #(run-gp-loop %2 %2 %1) (partition (count teacher-population) (shuffle student-population)) teacher-population)
+  ; run gp on each student-teacher group
+  (map #(run-gp-loop %1 %2)
+       ; split students into different groups based on amount of teachers
+       (partition (count teacher-population)
+                  ; shuffle students so teachers get different ones
+                  (shuffle student-population))
+       teacher-population)
   )
 
 ; evaluate students
+; TODO: edit so it only sends back performances
 (defn evaluate-students [all-test-cases student-population]
-  (run-gp-eval all-test-cases all-test-cases student-population))
+  ; just call gp on it
+  (run-gp-eval student-population all-test-cases))
 
 ; main loop
 ; TODO: combine evolving stuff so that the output of 1 is passed to the next
-; TODO: rewrite new-student individual so it works with init-gp
-(defn main [student-population-size generations train-cases semester-length]
-  (loop [student-population (repeatedly student-population-size
-                                        #(new-student-individual))
-         teacher-population (repeatedly teacher-population-size
-                                        #(create-random-teacher-genome))
-         generation 0]
-    ; report here potentially?
+(defn main [teacher-population-size student-population-size student-size generations all-test-cases]
+  ; loop until you hit generation limit
+  (loop
+    ; student pop made using gp code
+    [student-population
+         (#?(:clj pmap :cljs map)
+           (fn [_] {:plushy
+                    (genome/make-random-plushy regression/instructions student-size)})
+           (range student-population-size))
+     ; create as many teachers as needed
+     teacher-population (repeatedly teacher-population-size
+                                    #(create-random-teacher-genome))
+     ; start at gen 0
+     generation 0]
+    ; TODO: report here potentially?
+    ; only continue if below gen count
     (if (< generation generations)
-      ; Yes
+      ; evolve students and pass on to relevant places
+      (let [new-student-population (evolve-students teacher-population student-population)]
       (recur
-        (let [new-student-population (evolve-students teacher-population student-population)]
+        ; evolved student population
         new-student-population
-        teacher-population; (map #(evolve-teacher) teacher-population (partition (count teacher-population) new-student-population))
+        ; evolved teacher population
+        teacher-population; (map #(evolve-teacher) teacher-population (partition (count teacher-population) new-student-population)))
+        ; increase gen
         (inc generation)))
+      ; loop is over, send back full eval
       (evaluate-students all-test-cases student-population)
       )))
 

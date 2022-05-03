@@ -51,8 +51,8 @@
 
 (defn gp
   "Main GP loop."
-  [{:keys [population population-size max-generations error-function instructions
-           max-initial-plushy-size solution-error-threshold mapper]
+  [{:keys [population population-size max-generations error-function
+            solution-error-threshold mapper]
     :or   {solution-error-threshold 0.0
            ;; The `mapper` will perform a `map`-like operation to apply a function to every individual
            ;; in the population. The default is `map` but other options include `mapv`, or `pmap`.
