@@ -125,15 +125,6 @@
              :elitism                 false})
      ))
 
-; make a random plushy for the students
-(defn make-random-student
-  [max-initial-plushy-size]
-  ; make as many students as specified
-  (repeatedly
-    (rand-int max-initial-plushy-size)
-    ; choose random regression options to make students
-    #(utils/random-instruction regression/instructions)))
-
 ; evolve subgroups of students
 (defn evolve-subgroups [teacher student-subgroup]
   (map #(run-gp-loop %1 teacher) student-subgroup))
@@ -189,36 +180,6 @@
       ; TODO: execution error when sending results - divide by 0 - gp/report needs substitution
       (evaluate-students all-test-cases student-population)
       )))
-
-(main 5 10 5 5 example-test-cases)
-
-
-
-(def student-population
- (#?(:clj pmap :cljs map)
-   (fn [_] {:plushy
-            (genome/make-random-plushy regression/instructions 10)})
-   (range 4)))
- ; create as many teachers as needed
-(def teacher-population (repeatedly 2
-                                #(create-random-teacher-genome)))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
