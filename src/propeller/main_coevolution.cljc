@@ -90,7 +90,8 @@
 ; gp loop- the evolving call
 ; calls gp loop when we want to evolve the students
 (defn run-gp-loop [students teacher-cases]
-  (gp/gp {:instructions            regression/instructions
+  (do (print "running main gp loop...")
+      (gp/gp {:instructions            regression/instructions
           :error-function          regression/error-function
           :training-data           teacher-cases
           :testing-data            (:test regression/train-and-test-data)
@@ -103,11 +104,12 @@
           :umad-rate               0.01
           :variation               {:umad      1.0
                                     :crossover 0.0}
-          :elitism                 false})
+          :elitism                 false}))
   )
 
 ; calls gp loop just because it's also a hacky way to get the test scores
 (defn run-gp-eval [students teacher-cases]
+  (do (print "running eval gp...")
      (gp/gp {:error-function          regression/error-function
              :training-data           teacher-cases
              :testing-data            (:test regression/train-and-test-data)
@@ -121,7 +123,7 @@
              :variation               {:umad      1.0
                                        :crossover 0.0}
              :elitism                 false})
-     )
+     ))
 
 ; make a random plushy for the students
 (defn make-random-student
@@ -132,16 +134,20 @@
     ; choose random regression options to make students
     #(utils/random-instruction regression/instructions)))
 
+; evolve subgroups of students
+(defn evolve-subgroups [teacher student-subgroup]
+  (map #(run-gp-loop %1 teacher) student-subgroup))
 
-; evolve students
+; split students and send them to evolve
 (defn evolve-students [teacher-population student-population]
   ; run gp on each student-teacher group
-  (map #(run-gp-loop %1 %2)
+  (do
+    (map #(evolve-subgroups %1 %2)
        ; split students into different groups based on amount of teachers
        (partition (count teacher-population)
                   ; shuffle students so teachers get different ones
                   (shuffle student-population))
-       teacher-population)
+       teacher-population))
   )
 
 ; evaluate students
@@ -151,7 +157,6 @@
   (run-gp-eval student-population all-test-cases))
 
 ; main loop
-; TODO: combine evolving stuff so that the output of 1 is passed to the next
 (defn main [teacher-population-size student-population-size student-size generations all-test-cases]
   ; loop until you hit generation limit
   (loop
@@ -169,6 +174,8 @@
     ; TODO: report here potentially?
     ; only continue if below gen count
     (if (< generation generations)
+      (do
+        (print (str "on gen: " generation "\n"))
       ; evolve students and pass on to relevant places
       (let [new-student-population (evolve-students teacher-population student-population)]
       (recur
@@ -177,10 +184,43 @@
         ; evolved teacher population
         teacher-population; (map #(evolve-teacher) teacher-population (partition (count teacher-population) new-student-population)))
         ; increase gen
-        (inc generation)))
+        (inc generation))))
       ; loop is over, send back full eval
+      ; TODO: execution error when sending results - divide by 0 - gp/report needs substitution
       (evaluate-students all-test-cases student-population)
       )))
+
+(main 5 10 5 5 example-test-cases)
+
+
+
+(def student-population
+ (#?(:clj pmap :cljs map)
+   (fn [_] {:plushy
+            (genome/make-random-plushy regression/instructions 10)})
+   (range 4)))
+ ; create as many teachers as needed
+(def teacher-population (repeatedly 2
+                                #(create-random-teacher-genome)))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ; normalizing function
 (defn normalize [v]
