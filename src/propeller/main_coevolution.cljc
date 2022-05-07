@@ -189,7 +189,7 @@
   (let [total (reduce + v)]
     (map #(/ % total) v)))
 
-(def base-teacher-vector
+(def list-base-teacher-vector
   ;shuffled to make random teachers
   ;IF ADDING ANOTHER FEATURE, PUT IT IN THIS VECTOR
   ;feature functions are of the form:
@@ -216,9 +216,9 @@
         i
         (recur (inc i) (+ (prob-vector i) sum))))))
 
-(defn create-random-teacher-genome []
+(defn list-create-random-teacher-genome []
   ;returns a randomly created teacher genome
-  (shuffle base-teacher-vector))
+  (shuffle list-base-teacher-vector))
 
 ;inputs:
 ;teacher-genome: the genome for a single teacher
@@ -229,10 +229,10 @@
 ;outputs:
 ;a list, num-test-cases long, of test cases.
 
-;example usage: (teacher-to-cases all-easiest-genome example-test-cases example-test-case-performance 2)
-;"give me 2 test cases, from the teacher genome 'all-easiest-genome', from the test case set 'example-test-cases' which
+;example usage: (list-teacher-to-cases list-all-easiest-genome example-test-cases example-test-case-performance 2)
+;"give me 2 test cases, from the teacher genome 'list-all-easiest-genome', from the test case set 'example-test-cases' which
 ;has performance detailed in 'example-test-case-performance' ."
-(defn teacher-to-cases [teacher-genome, all-test-cases, test-case-performance, num-test-cases]
+(defn list-teacher-to-cases [teacher-genome, all-test-cases, test-case-performance, num-test-cases]
   ;returns list of n test cases, chosen according to the teacher's genome
   (loop [remaining-test-cases all-test-cases ;test cases we have not selected already for returning
          remaining-test-case-performance test-case-performance ;test case performance of test cases we have not selected
@@ -284,10 +284,81 @@
    {:input1 [-5] :output1 [21]}
    ])
 
-(def all-easiest-genome
+(def list-all-easiest-genome
   [take-n-easiest, take-n-hardest, take-n-most-variant, take-n-least-variant, take-n-random])
 
-(def all-random-genome
+(def list-all-random-genome
   [take-n-random, take-n-hardest, take-n-most-variant, take-n-least-variant, take-n-easiest])
+
+;_(list-teacher-to-cases list-all-easiest-genome example-test-cases example-test-case-performance 2)
+
+;##############################################################################
+;New teachers! Teachers are now a list of 5 weights that correspond to the 5 feature functions.
+;mutation is done by shifting a percentage up or down (but not past 0) and then normalizing
+
+(def feature-functions
+  [take-n-easiest, take-n-hardest, take-n-most-variant, take-n-least-variant, take-n-random])
+
+(def base-teacher-vector
+  ;not really relevant the way it is in the list version of a teacher
+  ;I can use this to talk about teacher genomes though
+  ;the weights in each index correspond to:
+  ;easiest, hardest, most variant, least variant, random
+  (vec [0.2, 0.2, 0.2, 0.2, 0.2]))
+
+(defn create-random-teacher-genome []
+  (vec (normalize (take 5 (repeatedly #(rand 1.0))))))
+
+;inputs:
+;teacher-genome: the genome for a single teacher
+;all-test-cases: all the test cases (list of maps)
+;test-case-performance: performance on those test cases for some set of students (list of lists, each one corresponding to a specific test case)
+;num-test-cases: number of test cases to return. IMPORTANT: DO NOT MAKE THIS NUMBER BIGGER THAN SIZE OF ALL TEST CASES
+
+;outputs:
+;a list, num-test-cases long, of test cases.
+
+;example usage: (teacher-to-cases all-easiest-genome example-test-cases example-test-case-performance 2)
+;"give me 2 test cases, from the teacher genome 'all-easiest-genome', from the test case set 'example-test-cases' which
+;has performance detailed in 'example-test-case-performance' ."
+(defn teacher-to-cases [teacher-genome, all-test-cases, test-case-performance, num-test-cases]
+  ;returns list of n test cases, chosen according to the teacher's genome
+  (loop [remaining-test-cases all-test-cases ;test cases we have not selected already for returning
+         remaining-test-case-performance test-case-performance ;test case performance of test cases we have not selected
+         num-left-to-choose num-test-cases ;how many cases we still need to add to the return vector
+         final-set-of-cases (vector) ;the return vector, ends up as a list of length num-test-cases of distinct test cases
+         ]
+    (let [chosen-feature-function (nth feature-functions (random-from-probabilities teacher-genome)) ;choose a feature function to use for this index
+          chosen-test-case (first (chosen-feature-function remaining-test-cases, remaining-test-case-performance, 1)) ;use it to pick a test case
+          chosen-case-index (.indexOf remaining-test-cases chosen-test-case) ;helper to remove test case from remaining
+          new-set-of-cases (conj final-set-of-cases chosen-test-case) ;return vector with our new case added on
+          ]
+      (do
+        (if (= 1 num-left-to-choose)
+          ;if we're done, exit the loop and return our final vector
+          new-set-of-cases
+          ;otherwise, recur
+          (recur
+            ;set of test cases with newest chosen case removed becomes our new list of test cases we haven't selected already
+            (vec (remove #(= % chosen-test-case) remaining-test-cases))
+            ;set of test case performance with newest chosen case removed becomes our new list of test case performance for test cases we haven't selected already
+            (vec (concat (subvec remaining-test-case-performance 0 chosen-case-index)
+                         (subvec remaining-test-case-performance (+ chosen-case-index 1) (count remaining-test-case-performance))))
+            (- num-left-to-choose 1)
+            new-set-of-cases) ;return vector with our newest case included
+          )
+        )
+      )
+    )
+  )
+
+(def all-easiest-genome
+  [1.0 0.0 0.0 0.0 0.0])
+
+(def all-random-genome
+  [0.0 0.0 0.0 0.0 1.0])
+
+(def balanced-genome
+  [0.2 0.2 0.2 0.2 0.2])
 
 ;_(teacher-to-cases all-easiest-genome example-test-cases example-test-case-performance 2)
