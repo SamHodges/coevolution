@@ -75,7 +75,8 @@
       (cond
         ;; Success on training cases is verified on testing cases
         (<= (:total-error best-individual) solution-error-threshold)
-        (do (prn {:success-generation generation})
+        (do
+          (prn {:success-generation generation})
             (prn {:total-test-error
                   (:total-error (error-function argmap (:testing-data argmap) best-individual))})
             (when (:simplification? argmap)
@@ -86,6 +87,7 @@
         (do (print "This is the pop:")
             (println)
             population)
+
         ;;
         :else (recur (inc generation)
                      (if (:elitism argmap)
