@@ -7,7 +7,6 @@
             [propeller.push.instructions :as instructions]
             [propeller.push.interpreter :as interpreter]
             [propeller.push.state :as state]
-            [propeller.tools.math :as math]
             [propeller.utils :as utils]))
 
 ; make initial test cases
@@ -91,14 +90,12 @@
 ; gp loop- the evolving call
 ; calls gp loop when we want to evolve the students
 (defn run-gp-loop [students teacher-cases]
-  (do (print "running main gp loop... \n")
-      (print "my students: " students "\n")
-      (print "my teacher: " teacher-cases "\n")
+  (do (print "running main gp loop...")
       (gp/gp {:instructions            regression/instructions
           :error-function          regression/error-function
-          :training-data           (apply list teacher-cases)
+          :training-data           teacher-cases
           :testing-data            (:test regression/train-and-test-data)
-          :max-generations         1
+          :max-generations         500
           :population-size         (count students)
           :population              students
           :step-limit              200
@@ -110,102 +107,45 @@
           :elitism                 false}))
   )
 
-
-; error function
-(defn error-function [input-output-pairs student]
-  (let [program (genome/plushy->push (:plushy student))
-        inputs (map (fn [x] (first (:input1 x))) input-output-pairs)
-        correct-outputs (map (fn [x] (first (:output1 x))) input-output-pairs)
-        outputs (map (fn [input]
-                 (state/peek-stack
-                   (interpreter/interpret-program
-                     program
-                     (assoc state/empty-state :input {:in1 input})
-                     200)
-                   :integer))
-               inputs)
-        errors (map (fn [correct-output output]
-                (if (= output :no-stack-item)
-                  1000000
-                  (math/abs (- correct-output output))))
-              correct-outputs
-              outputs)]
-    errors))
+; calls gp loop just because it's also a hacky way to get the test scores
+(defn run-gp-eval [students teacher-cases]
+  (do (print "running eval gp...")
+     (gp/gp {:error-function          regression/error-function
+             :training-data           teacher-cases
+             :testing-data            (:test regression/train-and-test-data)
+             :max-generations         1
+             :population              students
+             :population-size         (count students)
+             :step-limit              200
+             :parent-selection        :tournament
+             :tournament-size         5
+             :umad-rate               0.01
+             :variation               {:umad      1.0
+                                       :crossover 0.0}
+             :elitism                 false})
+     ))
 
 ; evolve subgroups of students
-(defn evolve-subgroups [student-subgroup teacher]
-  (let [new-students (run-gp-loop student-subgroup teacher)]
-    (do
-      (print "evolving subgroups method... \n")
-      (print new-students "\n")
-        new-students)))
+(defn evolve-subgroups [teacher student-subgroup]
+  (map #(run-gp-loop %1 teacher) student-subgroup))
 
 ; split students and send them to evolve
-(defn evolve-students [teacher-population student-population all-test-cases test-case-performance]
+(defn evolve-students [teacher-population student-population]
   ; run gp on each student-teacher group
   (do
-    (print "evolving students..." "\n")
-    (let [split-students
-          (partition (/ (count student-population) (count teacher-population))
-                     ; shuffle students so teachers get different ones
-                     (shuffle student-population))
-          teacher-cases
-          (map #(teacher-to-cases %1 all-test-cases
-                                  (vec (map vec test-case-performance))
-                                (/ (count test-case-performance) 2))
-                             teacher-population)
-          evolved-students (map evolve-subgroups split-students teacher-cases)]
-      (print "split students: " split-students "\n")
-      (print "teacher-cases: " teacher-cases "\n")
-      (print "evolved students: " evolved-students "\n")
-    evolved-students))
+    (map #(evolve-subgroups %1 %2)
+       ; split students into different groups based on amount of teachers
+       (partition (count teacher-population)
+                  ; shuffle students so teachers get different ones
+                  (shuffle student-population))
+       teacher-population))
   )
 
-
-(def teacher-population '([0.467830484743246 0.05742994503583208 0.24787083171760918 0.21481503394808674 0.012053704555225905] [0.20823573476733295 0.2087936143955382 0.28331310960040895 0.2554954728406314 0.04416206839608836]) )
-(def all-test-cases
-  '[{:input1 [4], :output1 [3]} {:input1 [2], :output1 [-3]}
-    {:input1 [1], :output1 [1]} {:input1 [20], :output1 [12]}
-    {:input1 [16], :output1 [-6]} {:input1 [7], :output1 [16]}
-    {:input1 [-5], :output1 [21]}])
-(def test-case-performance '((1 5 0 8 22 9 26) (1000000 1000000 1000000 1000000 1000000 1000000 1000000)
-                             (1000000 1000000 1000000 1000000 1000000 1000000 1000000)
-                             (1000000 1000000 1000000 1000000 1000000 1000000 1000000) (2 4 0 11 7 15 20)
-                             (1000000 1000000 1000000 1000000 1000000 1000000 1000000) (3 3 1 12 6 16 21) (2 4 0 11 7 15 20)
-                             (1000000 1000000 1000000 1000000 1000000 1000000 1000000) (2 4 0 11 7 15 20)) )
-
-(vec (map vec test-case-performance))
-(def teacher [0.467830484743246 0.05742994503583208 0.24787083171760918 0.21481503394808674 0.012053704555225905])
-(map #(teacher-to-cases
-        %1 all-test-cases (vec (map vec test-case-performance))
-        (/ (count test-case-performance) 2)) teacher-population)
-(def student-population (#?(:clj pmap :cljs map)
-  (fn [_] {:plushy
-           (genome/make-random-plushy regression/instructions 5)})
-  (range 10)))
-
-(def test-student '({:plushy (0)}
-               {:plushy ()}
-               {:plushy (close 1 :in1 :integer_subtract)}
-               {:plushy (:integer_mult)}
-               {:plushy (:integer_subtract close)}))
-
-(def test-teacher [{:input1 [2], :output1 [-3]}
-                   {:input1 [1], :output1 [1]}
-                   {:input1 [4], :output1 [3]}
-                   {:input1 [16], :output1 [-6]}
-                   {:input1 [-5], :output1 [21]}])
-
-
-; TODO: can't output all test cases for some reason? can only do 8/10 max?
-
 ; evaluate students
+; TODO: edit so it only sends back performances
 (defn evaluate-students [all-test-cases student-population]
-  (do (print "evaluating... \n")
-      (print "current student pop:" student-population "\n")
-      ;(print error-function all-test-cases (first student-population))
-    (map #(error-function all-test-cases %1) student-population)))
-
+  ; just call gp on it
+  (run-gp-eval student-population all-test-cases))
 
 ; main loop
 (defn main [teacher-population-size student-population-size student-size generations all-test-cases]
@@ -220,8 +160,6 @@
      ; create as many teachers as needed
      teacher-population (repeatedly teacher-population-size
                                     #(create-random-teacher-genome))
-     ; keep track of scores
-     student-scores (map #(error-function all-test-cases %1) student-population)
      ; start at gen 0
      generation 0]
     ; TODO: report here potentially?
@@ -230,17 +168,12 @@
       (do
         (print (str "on gen: " generation "\n"))
       ; evolve students and pass on to relevant places
-      (let [new-student-scores (evaluate-students all-test-cases student-population)
-            new-student-population
-            (evolve-students teacher-population student-population all-test-cases
-                             new-student-scores)]
+      (let [new-student-population (evolve-students teacher-population student-population)]
       (recur
         ; evolved student population
         new-student-population
         ; evolved teacher population
         teacher-population; (map #(evolve-teacher) teacher-population (partition (count teacher-population) new-student-population)))
-        ; evaluate students compared to last performances
-        (map - student-scores new-student-scores)
         ; increase gen
         (inc generation))))
       ; loop is over, send back full eval
@@ -248,7 +181,7 @@
       (evaluate-students all-test-cases student-population)
       )))
 
-(main 2 10 10 5 example-test-cases)
+
 
 ; normalizing function
 (defn normalize [v]
