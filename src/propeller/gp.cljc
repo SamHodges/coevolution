@@ -83,8 +83,8 @@
                 (prn {:total-test-error-simplified (:total-error (error-function argmap (:testing-data argmap) (hash-map :plushy simplified-plushy)))}))))
         ;;
         (>= generation max-generations)
-        (do (print "This is the pop:")
-            (println)
+        (do (print "This is the pop: \n")
+            (print "population: " population "\n")
             population)
         ;;
         :else (recur (inc generation)
