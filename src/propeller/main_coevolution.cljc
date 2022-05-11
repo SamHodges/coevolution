@@ -1,5 +1,5 @@
+; importing libraries
 (ns propeller.main-coevolution
-  ;libraries
   (:require [propeller.genome :as genome]
             [propeller.gp :as gp]
             [propeller.selection :as selection]
@@ -10,81 +10,188 @@
             [propeller.tools.math :as math]
             [propeller.utils :as utils]))
 
-; make initial test cases
-; TODO: change amount of cases to whatever we end up waiting
+; ????????
+; make initial test cases?????
 ; -> go to function in simple classification
 (require '[propeller.problems.simple_classification_ryan :as classification])
 (def all-train-cases (:train propeller.problems.simple-classification-ryan/train-and-test-data))
 
+; -----------------------------------------------------------------------
+; Helper Functions for Take N Functions
 
-; Random test subset
+; inputs:
+; - all-test-cases: the entire subset, eg:
+#_(def example-test-cases
+    [{:input1 [4] :output1 [3]}
+     {:input1 [2] :output1 [-3]}
+     {:input1 [1] :output1 [1]}
+     ])
+
+; - test-case-performance: how well students did on tests, eg:
+#_(def example-test-case-performance
+    [[10 6 0 5 7]
+     [14 2 4 9 10]
+     [0 5 3 8 11]])
+
+; - paired-performance-test-cases: list with paired errors and test cases, eg:
+#_(def example-paired-performance-test-cases
+    '((28 {:input1 [4], :output1 [3]})
+      (39 {:input1 [2], :output1 [-3]})
+      (27 {:input1 [1], :output1 [1]})))
+
+; - single-test-case-performance: the test case performance for only 1 test, eg:
+#_(def example-single-test-case-performance
+    [10 6 0 5 7])
+
+
+
+; Hardest/Easiest Helper Functions
+
+; Pair Error and Test Cases
+; make a list with the errors and test cases combined
+; output:
+; - combined list of error/test cases, eg ((28 {:input1 [4], :output1 [3]}) (39 {:input1 [2], :output1 [-3]}))
+(defn pair-total-error-and-test-case [test-case-performance, all-test-cases]
+  (map #(concat [%1] [%2])
+       (map #(reduce + %) test-case-performance) all-test-cases))
+#_(pair-total-error-and-test-case example-test-case-performance example-test-cases)
+
+
+; Unpair Error and Test Cases
+; separate total error from test case, and return the test cases
+; output:
+; - list of test cases, eg => ({:input1 [4], :output1 [3]} {:input1 [1], :output1 [1]})
+(defn unpair-total-error-and-test-case [paired-performance-test-cases]
+  (map #(second %) paired-performance-test-cases))
+#_(unpair-total-error-and-test-case example-paired-performance-test-cases)
+
+
+
+; Variance Helper Functions
+
+; Find Smallest
+; find the smallest student error
+; output:
+; - smallest error, eg 0
+(defn find-smallest [single-test-case-performance]
+  (reduce #(if (< %1 %2) %1 %2) single-test-case-performance))
+#_(find-smallest example-single-test-case-performance)
+
+; Find Largest
+; find the largest student error
+; output:
+; - largest error, eg 10
+(defn find-largest [single-test-case-performance]
+  (reduce #(if (> %1 %2) %1 %2) single-test-case-performance))
+#_(find-largest example-single-test-case-performance)
+
+; Find Variance
+; find the difference between the smallest and largest error for each test case
+; output:
+; - list of variances, eg (10 12 11)
+(defn find-variance [test-case-performance]
+  (map - (map find-largest test-case-performance) (map find-smallest test-case-performance)))
+#_(find-variance example-test-case-performance)
+
+; Pair Variance and Test Cases
+; make a list with the variances and test cases combined
+; output:
+; - combined list of variance/test cases, eg ((28 {:input1 [4], :output1 [3]}) (39 {:input1 [2], :output1 [-3]}))
+(defn pair-variance-and-test-case [test-case-performance, all-test-cases]
+  (map #(concat [%1] [%2])
+       (find-variance test-case-performance)
+       all-test-cases))
+#_(pair-variance-and-test-case example-test-case-performance example-test-cases)
+
+; Unpair Variance and Test Cases
+; separate variance from test case, and return the test cases
+; output:
+; - list of test cases, eg => ({:input1 [4], :output1 [3]} {:input1 [1], :output1 [1]})
+(defn unpair-variance-and-test-case [paired-performance-test-cases]
+  (map #(second %) paired-performance-test-cases))
+#_(unpair-variance-and-test-case example-paired-performance-test-cases)
+
+
+
+; -----------------------------------------------------------------------
+; Take N Functions
+
+; inputs:
+; - all-test-cases: the entire subset, eg:
+#_(def example-test-cases
+  [{:input1 [4] :output1 [3]}
+   {:input1 [2] :output1 [-3]}
+   {:input1 [1] :output1 [1]}
+   ])
+
+; - test-case-performance: how well students did on tests, eg:
+#_(def example-test-case-performance
+  [[10 6 0 5 7]
+   [14 2 4 9 10]
+   [0 5 3 8 11]])
+
+; - n: how many cases you want to return, eg:
+#_(def example-n 2)
+
+; outputs:
+; - a subset of test cases, eg: ({:input1 [2], :output1 [-3]} {:input1 [4], :output1 [3]})
+
+; Take n Random
+; take a random subset from the main set
 (defn take-n-random [all-test-cases, test-case-performance, n]
   (if (> n (count all-test-cases))
     all-test-cases
     (take n (shuffle all-test-cases)))
   )
+#_(take-n-random example-test-cases example-test-case-performance example-n)
 
-; Helper functions to order questions by difficulty
-; add total error to each test case
-(defn pair-total-error-and-test-case [test-case-performance, all-test-cases]
-  (map #(concat [%1] [%2])
-       (map #(reduce + %) test-case-performance) all-test-cases))
-
-; separate total error from test case
-(defn unpair-total-error-and-test-case [paired-performance-test-cases]
-  (map #(second %) paired-performance-test-cases))
-
-; Hardest
+; Take n Hardest
+; take a subset of the hardest test cases
 (defn take-n-hardest [all-test-cases, test-case-performance, n]
   (if (> n (count all-test-cases))
     all-test-cases
-    (take n (reverse (unpair-total-error-and-test-case (sort-by #(first %)
-                                                                (pair-total-error-and-test-case test-case-performance all-test-cases)))))
-    ))
+    (take n (reverse
+              (unpair-total-error-and-test-case
+                (sort-by #(first %)
+                         (pair-total-error-and-test-case
+                           test-case-performance all-test-cases)))))))
+#_(take-n-hardest example-test-cases example-test-case-performance example-n)
 
-; Easiest
+; Take n Easiest
+; take a subset of the easiest cases
 (defn take-n-easiest [all-test-cases, test-case-performance, n]
   (if (> n (count all-test-cases))
     all-test-cases
-    (take n (unpair-total-error-and-test-case (sort-by #(first %)
-                                                       (pair-total-error-and-test-case test-case-performance all-test-cases))))
-    ))
+    (take n (unpair-total-error-and-test-case
+              (sort-by #(first %)
+                       (pair-total-error-and-test-case
+                         test-case-performance all-test-cases))))))
+#_(take-n-easiest example-test-cases example-test-case-performance example-n)
 
-
-; Helper functions to sort by variance
-(defn unpair-variance-and-test-case [paired-performance-test-cases]
-  (map #(second %) paired-performance-test-cases))
-
-(defn find-smallest [single-test-case-performance]
-  (reduce #(if (< %1 %2) %1 %2) single-test-case-performance))
-
-(defn find-largest [single-test-case-performance]
-  (reduce #(if (> %1 %2) %1 %2) single-test-case-performance))
-
-(defn find-variance [test-case-performance]
-  (map - (map find-largest test-case-performance) (map find-smallest test-case-performance)))
-
-(defn pair-variance-and-test-case [test-case-performance, all-test-cases]
-  (map #(concat [%1] [%2])
-       (find-variance test-case-performance)
-       all-test-cases))
-
-
-; Most Variant
+; Take n Most Variant
 (defn take-n-most-variant [all-test-cases, test-case-performance, n]
   (if (> n (count all-test-cases))
     all-test-cases
-    (take n (reverse (unpair-variance-and-test-case (sort-by #(first %)
-                                                             (pair-variance-and-test-case test-case-performance all-test-cases)))))
-    ))
+    (take n (reverse
+              (unpair-variance-and-test-case
+                (sort-by #(first %)
+                         (pair-variance-and-test-case
+                           test-case-performance all-test-cases)))))))
+#_(take-n-most-variant example-test-cases example-test-case-performance example-n)
 
-;Least Variant
+; Take n Least Variant
 (defn take-n-least-variant [all-test-cases, test-case-performance, n]
   (if (> n (count all-test-cases))
     all-test-cases
-    (take n (unpair-variance-and-test-case (sort-by #(first %)
-                                                    (pair-variance-and-test-case test-case-performance all-test-cases))))
-    ))
+    (take n (unpair-variance-and-test-case
+              (sort-by #(first %)
+                       (pair-variance-and-test-case
+                         test-case-performance all-test-cases))))))
+#_(take-n-least-variant example-test-cases example-test-case-performance example-n)
+
+
+
+; -----------------------------------------------------------------------
 
 
 
