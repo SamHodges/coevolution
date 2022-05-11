@@ -201,7 +201,7 @@
       (gp/gp {:instructions            classification/instructions
               :error-function          classification/error-function
               :training-data           (apply list teacher-cases)
-              :testing-data            (:test propeller.problems.simple-classification-ryan/train-and-test-data)
+              :testing-data            (:test classification/train-and-test-data)
               :max-generations         2
               :population-size         (count students)
               :population              students ;test-student
