@@ -2,23 +2,18 @@
 (ns propeller.main-coevolution
   (:require [propeller.genome :as genome]
             [propeller.gp :as gp]
-            [propeller.selection :as selection]
-            [propeller.variation :as variation]
-            [propeller.push.instructions :as instructions]
             [propeller.push.interpreter :as interpreter]
             [propeller.push.state :as state]
-            [propeller.tools.math :as math]
-            [propeller.utils :as utils]))
+            [propeller.tools.math :as math]))
 
 ; TODO list:
+; TODO student testing: i think rn it may just be using evaluations, but need updates during semester too!
 ; TODO Error: change error function to be more in line with 3 7 problem instead of regression
-
+; TODO: Execution error (ClassCastException) at propeller.main-coevolution/find-largest$fn (form-init14770284050621684096.clj:62).
+; class clojure.lang.LazySeq cannot be cast to class java.lang.Number
+; (clojure.lang.LazySeq is in unnamed module of loader 'app'; java.lang.Number is in module java.base of loader 'bootstrap')
 
 ;##############################################################################
-
-; ????????
-; make initial test cases?????
-; -> go to function in simple classification
 (require '[propeller.problems.simple-classification-ryan :as classification])
 (def all-train-cases (:train propeller.problems.simple-classification-ryan/train-and-test-data))
 
@@ -58,13 +53,9 @@
 ; output:
 ; - combined list of error/test cases, eg ((28 {:input1 [4], :output1 [3]}) (39 {:input1 [2], :output1 [-3]}))
 (defn pair-total-error-and-test-case [test-case-performance, all-test-cases]
-  (do (print "PAIRING HERE \n")
-    (print "test cases: "  all-test-cases "\n")
-      (print "performance: " test-case-performance "\n"))
   (map #(concat [%1] [%2])
        (map #(reduce + %) test-case-performance) all-test-cases))
 #_(pair-total-error-and-test-case example-test-case-performance example-test-cases)
-#_(pair-total-error-and-test-case '(1 5 0 8 22 9 26) example-test-cases)
 
 
 ; Unpair Error and Test Cases
@@ -389,21 +380,55 @@
 ; Evolving Students
 
 ; inputs:
-; - students: a list of students, eg:
+; - students: a list of students for a single teacher, eg:
 #_(def example-students
     '({:plushy (:exec_dup :integer_subtract 0 :integer_subtract)}
       {:plushy (:exec_if :exec_if)} {:plushy (:integer_add :exec_dup :in1 0 :exec_if)}
       {:plushy (:in1 1 :integer_eq 0 :integer_subtract)}
       {:plushy (:integer_subtract :integer_quot)}))
 
-; - teacher-cases: a list of teachers, eg:
+; - student-population: a list of students for all of the teachers, eg:
+#_(def example-student-population
+    '(({:plushy (false :boolean_from_integer true)}
+       {:plushy (1 false :boolean_from_integer :integer_mod true)}
+       {:plushy (false :boolean_from_integer :integer_mod true)}
+       {:plushy (:boolean_invert_first_then_and true :integer_mod 3)}
+       {:plushy (true true :integer_mod 3)})
+      ({:plushy (true true :integer_mod 3)}
+       {:plushy (true true :integer_mod 3)}
+       {:plushy (false :boolean_from_integer :integer_mod true :boolean_not)}
+       {:plushy (true true :integer_mod 3)}
+       {:plushy (false :boolean_from_integer :integer_mod true)})))
+
+; - teacher-cases, teacher-population: a list of teachers, eg:
 #_(def example-teacher-cases
     '([0.005542920374019209 0.3299393224209624 0.2873773482352696 0.13283622678584261 0.24430418218390626]
       [0.21733978683274813 0.08560319324948945 0.3089665255126939 0.008750299970001355 0.3793401944350672]))
 
-; input-output-pairs
+; - all-test-cases: a list of actual test cases, eg,
+#_(def example-all-test-cases
+    '[{:input1 [4], :output1 [3]} {:input1 [2], :output1 [-3]}
+      {:input1 [1], :output1 [1]} {:input1 [20], :output1 [12]}
+      {:input1 [16], :output1 [-6]} {:input1 [7], :output1 [16]}
+      {:input1 [-5], :output1 [21]}])
 
-; student
+; - student: a single student plushy, eg:
+#_(def example-student '({:plushy (0)}))
+
+; - test-case-performance: a list of how well students do on different tests, eg
+#_(def example-test-case-performance
+    '([[1000000 1000000 1000000 1000000 1000000]
+       [1000000 1000000 1000000 1000000 1000000]
+       [1000000 1000000 1000000 1000000 1000000]
+       [1000000 1000000 1000000 1000000 1000000]
+       [1000000 1000000 1000000 1000000 1000000]
+       [1000000 1000000 1000000 1000000 1000000]
+       [1000000 1000000 1000000 1000000 1000000]]
+      [[0 0 0 0 0] [6 6 6 6 6]
+       [2 2 2 2 2] [9 9 9 9 9]
+       [9 9 9 9 9] [13 13 13 13 13] [18 18 18 18 18]])
+
+    )
 
 ; student-subgroup
 
@@ -438,10 +463,10 @@
 ; error function from regression backend code.
 ; output:
 ; - errors for each student, eg
-(defn error-function [input-output-pairs student]
+(defn error-function [all-test-cases student]
   (let [program (genome/plushy->push (:plushy student))
-        inputs (map (fn [x] (first (:input1 x))) input-output-pairs)
-        correct-outputs (map (fn [x] (first (:output1 x))) input-output-pairs)
+        inputs (map (fn [x] (first (:input1 x))) all-test-cases)
+        correct-outputs (map (fn [x] (first (:output1 x))) all-test-cases)
         outputs (map (fn [input]
                        (state/peek-stack
                          (interpreter/interpret-program
@@ -457,7 +482,7 @@
                     correct-outputs
                     outputs)]
     errors))
-#_(error-function example-input-output-pairs example-student)
+#_(error-function example-all-test-cases example-student)
 
 ; Evolve Students
 ; shuffle student splits and send them to evolve
@@ -473,61 +498,21 @@
                      (shuffle combined-students))
           teacher-cases
           (map #(teacher-to-cases %1 all-test-cases
-                                  (vec (map vec test-case-performance))
-                                  (/ (count test-case-performance) 2))
-               teacher-population)
+                                  (vec (map vec %2))
+                                  (/ (count combined-students) 2))
+               teacher-population test-case-performance)
           evolved-students (map run-gp-loop split-students teacher-cases)]
       (print "combined students: " (count combined-students) combined-students "\n")
       (print "split students: " (count split-students) split-students "\n")
-      (print "teacher weights: " teacher-population)
-      ;(print "teacher-cases: " (count teacher-cases) teacher-cases "\n")
-      ;(print "evolved students: " (count evolved-students) evolved-students "\n")
-      evolved-students))
-  ;student-population))
-  )
-
-
-(def teacher-population '([0.005542920374019209 0.3299393224209624 0.2873773482352696 0.13283622678584261 0.24430418218390626]
-                          [0.21733978683274813 0.08560319324948945 0.3089665255126939 0.008750299970001355 0.3793401944350672]))
-(def all-test-cases
-  '[{:input1 [4], :output1 [3]} {:input1 [2], :output1 [-3]}
-    {:input1 [1], :output1 [1]} {:input1 [20], :output1 [12]}
-    {:input1 [16], :output1 [-6]} {:input1 [7], :output1 [16]}
-    {:input1 [-5], :output1 [21]}])
-(def test-case-performance '((1 5 0 8 22 9 26) (1000000 1000000 1000000 1000000 1000000 1000000 1000000)
-                             (1000000 1000000 1000000 1000000 1000000 1000000 1000000)
-                             (1000000 1000000 1000000 1000000 1000000 1000000 1000000) (2 4 0 11 7 15 20)
-                             (1000000 1000000 1000000 1000000 1000000 1000000 1000000) (3 3 1 12 6 16 21) (2 4 0 11 7 15 20)
-                             (1000000 1000000 1000000 1000000 1000000 1000000 1000000) (2 4 0 11 7 15 20)) )
-
-(vec (map vec test-case-performance))
-(def teacher [0.467830484743246 0.05742994503583208 0.24787083171760918 0.21481503394808674 0.012053704555225905])
-(map #(teacher-to-cases
-        %1 all-test-cases (vec (map vec test-case-performance))
-        (/ (count test-case-performance) 2)) teacher-population)
-(def student-population (#?(:clj pmap :cljs map)
-                          (fn [_] {:plushy
-                                   (genome/make-random-plushy propeller.problems.simple-classification-ryan/instructions 5)})
-                          (range 10)))
-
-(def test-student '({:plushy (0)}
-                    {:plushy ()}
-                    {:plushy (close 1 :in1 :integer_subtract)}
-                    {:plushy (:integer_mult)}
-                    {:plushy (:integer_subtract close)}))
-
-(def test-teacher [{:input1 [2], :output1 [-3]}
-                   {:input1 [1], :output1 [1]}
-                   {:input1 [4], :output1 [3]}
-                   {:input1 [16], :output1 [-6]}
-                   {:input1 [-5], :output1 [21]}])
-
-
-; TODO: can't output all test cases for some reason? can only do 8/10 max?
+      (print "teacher-cases: " (count teacher-cases) teacher-cases "\n")
+      (print "evolved students: " (count evolved-students) evolved-students "\n")
+      evolved-students)))
+#_(evolve-students example-teacher-cases example-students example-all-test-cases example-test-case-performance)
 
 (defn subgroup-error [all-test-cases student-subgroup]
-  (map #(error-function all-test-cases %1) student-subgroup))
-
+  (do
+    (apply (partial mapv vector) (vec (map #(vec (error-function all-test-cases %1)) student-subgroup)))
+    ))
 
 ; evaluate students
 (defn evaluate-students [all-test-cases student-population]
@@ -556,7 +541,7 @@
                                 (genome/make-random-plushy propeller.problems.simple-classification-ryan/instructions student-size)})
                        (range student-population-size)) teacher-population)
      ; keep track of scores
-     student-scores (map #(error-function all-test-cases %1) student-population)
+     student-scores (evaluate-students all-test-cases student-population)
      ; start at gen 0
      generation 0]
     ; TODO: report here potentially?
@@ -589,8 +574,3 @@
       )))
 
 (main 2 10 5 2 example-test-cases)
-
-;##############################################################################
-
-
-
