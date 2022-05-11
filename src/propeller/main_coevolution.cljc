@@ -8,12 +8,9 @@
             [propeller.push.interpreter :as interpreter]
             [propeller.push.state :as state]
             [propeller.tools.math :as math]
-            [propeller.utils :as utils]))
+            [propeller.utils :as utils]
+            [propeller.problems.simple-classification-ryan :as classification]))
 
-; ????????
-; make initial test cases?????
-; -> go to function in simple classification
-(require '[propeller.problems.simple_classification_ryan :as classification])
 (def all-train-cases (:train propeller.problems.simple-classification-ryan/train-and-test-data))
 
 ; -----------------------------------------------------------------------
@@ -42,7 +39,6 @@
 ; - single-test-case-performance: the test case performance for only 1 test, eg:
 #_(def example-single-test-case-performance
     [10 6 0 5 7])
-
 
 
 ; Hardest/Easiest Helper Functions
@@ -202,8 +198,8 @@
       (print "my students: " (count students) students "\n")
       (print "my teacher: " (count teacher-cases) teacher-cases "\n")
       (Thread/sleep 5000)
-      (gp/gp {:instructions            propeller.problems.simple-classification-ryan/instructions
-              :error-function          propeller.problems.simple-classification-ryan/error-function
+      (gp/gp {:instructions            classification/instructions
+              :error-function          classification/error-function
               :training-data           (apply list teacher-cases)
               :testing-data            (:test propeller.problems.simple-classification-ryan/train-and-test-data)
               :max-generations         2
@@ -353,16 +349,12 @@
     [; create as many teachers as needed
      teacher-population (repeatedly teacher-population-size
                                     #(create-random-teacher-genome))
-     student-population
-     (split-students (#?(:clj pmap :cljs map)
-                       (fn [_] {:plushy
-                                (genome/make-random-plushy propeller.problems.simple-classification-ryan/instructions student-size)})
-                       (range student-population-size)) teacher-population)
+     student-population (split-students (classification/create-initial-population student-population-size student-size) teacher-population)
      ; keep track of scores
      student-scores (map #(error-function all-test-cases %1) student-population)
      ; start at gen 0
      generation 0]
-    ; TODO: report here potentially?
+    ; TODO: report here potentially?f
     ; only continue if below gen count
     (if (< generation generations)
       (do

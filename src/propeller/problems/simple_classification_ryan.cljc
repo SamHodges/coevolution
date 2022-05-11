@@ -98,40 +98,76 @@
 ;      (apply hash-map (map #(if (string? %) (read-string %) %) args))))
 ;  (#?(:clj shutdown-agents)))
 
-"Defines an initial population for example"
-(def pop (gp/initial-gp
-           (merge
-             {:instructions            instructions
-              :error-function          error-function
-              :training-data           (:train train-and-test-data)
-              :testing-data            (:test train-and-test-data)
-              :max-generations         10
-              :population-size         5
-              :max-initial-plushy-size 100
-              :step-limit              200
-              :parent-selection        :lexicase
-              :tournament-size         5
-              :umad-rate               0.1
-              :variation               {:umad 0.5 :crossover 0.5}
-              :elitism                 false}
-             )))
+;"Defines an initial population for example"
+;(def pop (gp/initial-gp
+;           (merge
+;             {:instructions            instructions
+;              :error-function          error-function
+;              :training-data           (:train train-and-test-data)
+;              :testing-data            (:test train-and-test-data)
+;              :max-generations         10
+;              :population-size         5
+;              :max-initial-plushy-size 100
+;              :step-limit              200
+;              :parent-selection        :lexicase
+;              :tournament-size         5
+;              :umad-rate               0.1
+;              :variation               {:umad 0.5 :crossover 0.5}
+;              :elitism                 false}
+;             )))
 
-"Example gp"
-(gp/gp
-  (merge
-    {
-     :instructions            instructions
-     :error-function          error-function
-     :training-data           (:train train-and-test-data)
-     :testing-data            (:test train-and-test-data)
-     :max-generations         10
-     :population-size         5
-     :max-initial-plushy-size 100
-     :step-limit              200
-     :parent-selection        :lexicase
-     :tournament-size         5
-     :umad-rate               0.1
-     :variation               {:umad 0.5 :crossover 0.5}
-     :elitism                 false
-     :population              pop}
-    ))
+(defn create-initial-population
+  [pop-size plushy-size]
+  (def new-population (gp/initial-gp
+                        (merge
+                          {:instructions            instructions
+                           :population-size         pop-size
+                           :max-initial-plushy-size plushy-size }
+                          )))
+  new-population
+  )
+
+;(defn evolve
+;  [population-size ]
+;  (gp/gp
+;    (merge
+;      {
+;       :instructions            instructions
+;       :error-function          error-function
+;       :training-data           (:train train-and-test-data)
+;       :testing-data            (:test train-and-test-data)
+;       :max-generations         10
+;       :population-size         5
+;       :max-initial-plushy-size 100
+;       :step-limit              200
+;       :parent-selection        :lexicase
+;       :tournament-size         5
+;       :umad-rate               0.1
+;       :variation               {:umad 0.5 :crossover 0.5}
+;       :elitism                 false
+;       :population              pop}
+;      )
+;  )
+
+
+
+
+;"Example gp"
+;(gp/gp
+;  (merge
+;    {
+;     :instructions            instructions
+;     :error-function          error-function
+;     :training-data           (:train train-and-test-data)
+;     :testing-data            (:test train-and-test-data)
+;     :max-generations         10
+;     :population-size         5
+;     :max-initial-plushy-size 100
+;     :step-limit              200
+;     :parent-selection        :lexicase
+;     :tournament-size         5
+;     :umad-rate               0.1
+;     :variation               {:umad 0.5 :crossover 0.5}
+;     :elitism                 false
+;     :population              pop}
+;    ))
