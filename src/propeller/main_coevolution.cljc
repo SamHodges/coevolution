@@ -1,10 +1,15 @@
 ; importing libraries
 (ns propeller.main-coevolution
   (:require [propeller.genome :as genome]
-            [propeller.gp :as gp]
-            [propeller.push.interpreter :as interpreter]
-            [propeller.push.state :as state]
-            [propeller.tools.math :as math]))
+  [propeller.gp :as gp]
+  [propeller.selection :as selection]
+  [propeller.variation :as variation]
+  [propeller.push.instructions :as instructions]
+  [propeller.push.interpreter :as interpreter]
+  [propeller.push.state :as state]
+  [propeller.tools.math :as math]
+  [propeller.utils :as utils]
+  [propeller.problems.simple-classification-ryan :as classification]))
 
 ; TODO list:
 ; TODO student testing: i think rn it may just be using evaluations, but need updates during semester too!
@@ -14,7 +19,7 @@
 ; (clojure.lang.LazySeq is in unnamed module of loader 'app'; java.lang.Number is in module java.base of loader 'bootstrap')
 
 ;##############################################################################
-(require '[propeller.problems.simple-classification-ryan :as classification])
+
 (def all-train-cases (:train propeller.problems.simple-classification-ryan/train-and-test-data))
 
 ;##############################################################################
@@ -43,7 +48,6 @@
 ; - single-test-case-performance: the test case performance for only 1 test, eg:
 #_(def example-single-test-case-performance
     [10 6 0 5 7])
-
 
 
 ; Hardest/Easiest Helper Functions
@@ -565,12 +569,29 @@
             new-student-population
             ; re-calculate student scores
             (evaluate-students all-test-cases new-student-population)
-            ; TODO: add difference function so that we can use it for teacher mutate
-            ; (map - student-scores new-student-scores)
             ; increase gen
             (inc generation))))
       ; loop is over, send back full eval
-      (evaluate-students all-test-cases student-population)
+      student-population
       )))
 
-(main 2 10 5 2 example-test-cases)
+(main 2 10 15 2 example-test-cases)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+; add difference function so that we can use it for teacher mutate
+; (map - student-scores new-student-scores)

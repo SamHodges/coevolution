@@ -32,7 +32,7 @@
 
 (defn initial-gp
   "Returns initial population "
-  [{:keys [population-size max-generations error-function instructions
+  [{:keys [population-size instructions
            max-initial-plushy-size solution-error-threshold mapper]
     :or   {solution-error-threshold 0.0
            ;; The `mapper` will perform a `map`-like operation to apply a function to every individual
@@ -40,11 +40,9 @@
            mapper #?(:clj pmap :cljs map)}
     :as   argmap}]
 
-  (prn {:starting-args (update (update argmap :error-function str) :instructions str)})
-  (println)
   (let [population (mapper
-                    (fn [_] {:plushy (genome/make-random-plushy instructions max-initial-plushy-size)})
-                    (range population-size))]
+                     (fn [_] {:plushy (genome/make-random-plushy instructions max-initial-plushy-size)})
+                     (range population-size))]
     population
     )
   )
