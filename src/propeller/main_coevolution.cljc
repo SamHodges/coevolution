@@ -218,7 +218,7 @@
   ;for each test case, we choose it with probability index1 % from
   ;the first feature in its genome, probability index2 % from the second
   ;feature in its genome, etc.
-  (vec [100.0 0.0 0.0 0.0 0.0]))
+  (vec [1.0 0.0 0.0 0.0 0.0]))
 
 (defn random-from-probabilities [prob-vector]
   ;prob: [0.42, 0.21, ...]
@@ -512,6 +512,34 @@
       (print "evolved students: " (count evolved-students) evolved-students "\n")
       evolved-students)))
 #_(evolve-students example-teacher-cases example-students example-all-test-cases example-test-case-performance)
+
+(defn bestTeacher [teachers]
+  "Returns the best of the given teachers."
+  (reduce (fn [i1 i2]
+            (if (< (:error i1) (:error i2))
+              i1
+              i2))
+          teachers))
+
+(defn selectTeacher [population teacher_selection_tournament_size]
+  "Returns an individual selected from population using a tournament."
+  (bestTeacher (repeatedly teacher_selection_tournament_size #(rand-nth population))))
+
+
+(defn mutate [teacher] ; with a certain probability, add a random value from 0 to X to each element and then normalize
+  (normalize (map #(if (> (rand) 0.1)
+                      (+ (* (rand) 0.3) %)
+                      %)
+                  teacher)))
+(mutate base-teacher-vector)
+
+(defn evolve-teachers [teacher-population teacher_improvements teacher_selection_tournament_size]
+  (do
+    (print "evolving teachers...\n")
+    (let [population (map #({:genome %1 :error %2}) teacher-population teacher_improvements)] ;;combine (genome,error)
+      (repeatedly (count teacher-population)
+                  #(mutate (selectTeacher population teacher_selection_tournament_size)))
+      )))
 
 (defn subgroup-error [all-test-cases student-subgroup]
   (do
