@@ -501,8 +501,6 @@
                      ;shuffle students so teachers get different ones
                      (shuffle combined-students))
           ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-          ;NOTE: CREATE THE FUNCTION BEST-STUDENT-ERROR
-          ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
           best-student-errors-initial (map best-student-error split-students)
           ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
           teacher-cases
@@ -523,6 +521,11 @@
       (print "evolved students: " (count evolved-students) evolved-students "\n")
       (list evolved-students best-student-deltas best-student-error-overall))))
 #_(evolve-students example-teacher-cases example-students example-all-test-cases example-test-case-performance)
+
+(defn subgroup-error [all-test-cases student-subgroup]
+  (do
+    (apply (partial mapv vector) (vec (map #(vec (error-function all-test-cases %1)) student-subgroup)))
+    ))
 
 ; evaluate students
 (defn evaluate-students [all-test-cases student-population]
@@ -553,10 +556,14 @@
      ; keep track of scores
      student-scores (evaluate-students all-test-cases student-population)
      ; start at gen 0
-     generation 0]
+     generation 0
+     ;error of the best student of each semester, printed out at the end
+     ;a new number is conjed onto the end each semester
+     ;vector is initialized with the best error from the initial population
+     printout-error-vector (vec (min (map best-student-error student-population)))]
     ; TODO: report here potentially?
     ; only continue if below gen count
-    (if (< generation generations)
+    (if (or (< generation generations) (= (last printout-error-vector) 0))
       (do
         (print (str "on gen: " generation "\n"))
         (print "initial students: " (count student-population) student-population "\n")
@@ -569,7 +576,7 @@
               (first students-and-errors)
               student-deltas
               (second students-and-errors)
-              best-student-overall
+              best-student-error-overall
               (nth students-and-errors 2)
               new-student-scores (evaluate-students all-test-cases student-population)]
 
@@ -582,9 +589,14 @@
             ; re-calculate student scores
             (evaluate-students all-test-cases new-student-population)
             ; increase gen
-            (inc generation))))
+            (inc generation)
+            ;add on to our printout error vector
+            (conj printout-error-vector best-student-error-overall)
+            )))
       ; loop is over, send back full eval
-      student-population
+      (do
+        (print "Errors of best student each semester: " printout-error-vector)
+        student-population)
       )))
 
 (main 2 10 15 2 example-test-cases)
