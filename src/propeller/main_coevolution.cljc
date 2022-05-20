@@ -30,6 +30,7 @@
 (def student-population-size 10)
 (def student-size 15)
 (def semesters 2)
+(def days-in-semester 2)
 
 
 ; Helper Functions for Take N Functions
@@ -460,7 +461,7 @@
               :error-function          propeller.problems.simple-classification-ryan/error-function
               :training-data           (apply list teacher-cases)
               :testing-data            (:test propeller.problems.simple-classification-ryan/train-and-test-data)
-              :max-generations         2
+              :max-generations         days-in-semester
               :population-size         (count students)
               :population              students ;test-student
               :step-limit              200
