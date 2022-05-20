@@ -562,9 +562,15 @@
         (print "initial students: " (count student-population) student-population "\n")
         ; evolve students and pass on to relevant places
         (let [
-              new-student-population
+              students-and-errors
               (evolve-students teacher-population student-population all-test-cases
                                student-scores)
+              new-student-population
+              (first students-and-errors)
+              student-deltas
+              (second students-and-errors)
+              best-student-overall
+              (nth students-and-errors 2)
               new-student-scores (evaluate-students all-test-cases student-population)]
 
 
