@@ -31,6 +31,9 @@
 (def student-size 15)
 (def semesters 2)
 (def days-in-semester 2)
+(def teacher_selection_tournament_size 2)
+(def teacher_mutation_rate 0.1)
+(def teacher_mutation_max_increment 0.3)
 
 
 ; Helper Functions for Take N Functions
@@ -540,24 +543,24 @@
               i2))
           teachers))
 
-(defn selectTeacher [population teacher_selection_tournament_size]
+(defn selectTeacher [population]
   "Returns an individual selected from population using a tournament."
   (bestTeacher (repeatedly teacher_selection_tournament_size #(rand-nth population))))
 
 
 (defn mutate [teacher] ; with a certain probability, add a random value from 0 to X to each element and then normalize
-  (normalize (map #(if (> (rand) 0.1)
-                      (+ (* (rand) 0.3) %)
+  (normalize (map #(if (> (rand) teacher_mutation_rate)
+                      (+ (* (rand) teacher_mutation_max_increment) %)
                       %)
                   teacher)))
-(mutate base-teacher-vector)
+;(mutate base-teacher-vector)
 
-(defn evolve-teachers [teacher-population teacher_improvements teacher_selection_tournament_size]
+(defn evolve-teachers [teacher-population teacher_improvements]
   (do
     (print "evolving teachers...\n")
     (let [population (map #({:genome %1 :error %2}) teacher-population teacher_improvements)] ;;combine (genome,error)
       (repeatedly (count teacher-population)
-                  #(mutate (selectTeacher population teacher_selection_tournament_size)))
+                  #(mutate (selectTeacher population)))
       )))
 
 (defn subgroup-error [all-test-cases student-subgroup]
