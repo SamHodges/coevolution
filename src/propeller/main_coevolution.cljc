@@ -500,23 +500,29 @@
           (partition (/ (count combined-students) (count teacher-population))
                      ;shuffle students so teachers get different ones
                      (shuffle combined-students))
+          ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+          ;NOTE: CREATE THE FUNCTION BEST-STUDENT-ERROR
+          ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+          best-student-errors-initial (map best-student-error split-students)
+          ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
           teacher-cases
           (map #(teacher-to-cases %1 all-test-cases
                                   (vec (map vec %2))
                                   (/ (count combined-students) 2))
                teacher-population test-case-performance)
-          evolved-students (map run-gp-loop split-students teacher-cases)]
+          evolved-students (map run-gp-loop split-students teacher-cases)
+          ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+          best-student-errors-final (map best-student-error evolved-students)
+          best-student-deltas (map - best-student-errors-initial best-student-errors-final)
+          best-student-error-overall (min best-student-errors-final)
+          ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+          ]
       (print "combined students: " (count combined-students) combined-students "\n")
       (print "split students: " (count split-students) split-students "\n")
       (print "teacher-cases: " (count teacher-cases) teacher-cases "\n")
       (print "evolved students: " (count evolved-students) evolved-students "\n")
-      evolved-students)))
+      (list evolved-students best-student-deltas best-student-error-overall))))
 #_(evolve-students example-teacher-cases example-students example-all-test-cases example-test-case-performance)
-
-(defn subgroup-error [all-test-cases student-subgroup]
-  (do
-    (apply (partial mapv vector) (vec (map #(vec (error-function all-test-cases %1)) student-subgroup)))
-    ))
 
 ; evaluate students
 (defn evaluate-students [all-test-cases student-population]
