@@ -23,6 +23,15 @@
 (def all-train-cases (:train propeller.problems.simple-classification-ryan/train-and-test-data))
 
 ;##############################################################################
+
+;important constants:
+(def teacher-genome-length 5)
+(def teacher-population-size 2)
+(def student-population-size 10)
+(def student-size 15)
+(def semesters 2)
+
+
 ; Helper Functions for Take N Functions
 
 ; inputs:
@@ -322,7 +331,7 @@
   (vec [0.2, 0.2, 0.2, 0.2, 0.2]))
 
 (defn create-random-teacher-genome []
-  (vec (normalize (take 5 (repeatedly #(rand 1.0))))))
+  (vec (normalize (take teacher-genome-length (repeatedly #(rand 1.0))))))
 
 ;inputs:
 ;teacher-genome: the genome for a single teacher
@@ -600,7 +609,7 @@
       )))
 
 (main 2 10 15 2 example-test-cases)
-
+(main teacher-population-size student-population-size student-size semesters example-test-cases)
 
 
 
