@@ -22,7 +22,7 @@
 
 ;##############################################################################
 
-(def all-train-cases (:train propeller.problems.simple-classification-ryan/train-and-test-data))
+(def all-train-cases (:train classification/train-and-test-data))
 
 ;##############################################################################
 
@@ -464,10 +464,10 @@
 
       ;(Thread/sleep 5000)
       ; calls the gp function to run it
-      (gp/gp {:instructions            propeller.problems.simple-classification-ryan/instructions
-              :error-function          propeller.problems.simple-classification-ryan/error-function
+      (gp/gp {:instructions            classification/instructions
+              :error-function          classification/error-function
               :training-data           (apply list teacher-cases)
-              :testing-data            (:test propeller.problems.simple-classification-ryan/train-and-test-data)
+              :testing-data            (:test classification/train-and-test-data)
               :max-generations         days-in-semester
               :population-size         (count students)
               :population              students ;test-student
@@ -602,6 +602,15 @@
              ; shuffle students so teachers get different ones
              (shuffle combined-students)))
 
+(best-student-error
+  [student-population]
+  (let [best (first (gp/sort-pop {:population     student-population
+                                  :error-function classification/error-function}))]
+    (:total-error best)
+    ))
+
+
+
 ; main loop
 (defn main [teacher-population-size student-population-size student-size generations all-test-cases]
   ; loop until you hit generation limit
@@ -611,10 +620,7 @@
                                     #(create-random-teacher-genome))
      ; student pop made using gp code
      student-population
-     (split-students (#?(:clj pmap :cljs map)
-                       (fn [_] {:plushy
-                                (genome/make-random-plushy propeller.problems.simple-classification-ryan/instructions student-size)})
-                       (range student-population-size)) teacher-population)
+     (split-students (classification/create-initial-population student-population-size student-size) teacher-population)
      ; keep track of scores
      student-scores (evaluate-students all-test-cases student-population)
      ; start at gen 0

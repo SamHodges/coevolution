@@ -47,6 +47,23 @@
     )
   )
 
+(defn sort-pop
+  "Returns sorted population"
+  [{:keys [population error-function
+           solution-error-threshold mapper]
+    :or   {solution-error-threshold 0.0
+           ;; The `mapper` will perform a `map`-like operation to apply a function to every individual
+           ;; in the population. The default is `map` but other options include `mapv`, or `pmap`.
+           mapper #?(:clj pmap :cljs map)}
+    :as   argmap}]
+
+    (let [population (sort-by :total-error
+                            (mapper
+                              (partial error-function argmap (:training-data argmap))
+                              population))]
+    population
+    ))
+
 (defn gp
   "Main GP loop."
   [{:keys [population population-size max-generations error-function
