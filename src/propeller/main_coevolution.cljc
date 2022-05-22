@@ -12,11 +12,14 @@
   [propeller.problems.simple-classification-ryan :as classification]))
 
 ; TODO list:
-; TODO student testing: i think rn it may just be using evaluations, but need updates during semester too!
-; TODO Error: change error function to be more in line with 3 7 problem instead of regression
-; TODO: Execution error (ClassCastException) at propeller.main-coevolution/find-largest$fn (form-init14770284050621684096.clj:62).
+; TODO clean up reporting mechanisms
+; TODO make teacher genome length a passed in var instead of hardcoded!
 ; class clojure.lang.LazySeq cannot be cast to class java.lang.Number
 ; (clojure.lang.LazySeq is in unnamed module of loader 'app'; java.lang.Number is in module java.base of loader 'bootstrap')
+
+; Notes:
+; gp returns average error of best student?
+
 
 ;##############################################################################
 
@@ -446,7 +449,8 @@
   (do (print "running main gp loop... \n")
       (print "my students: " (count students) students "\n")
       (print "my teacher: " (count teacher-cases) teacher-cases "\n")
-      (Thread/sleep 5000)
+
+      ;(Thread/sleep 5000)
       (gp/gp {:instructions            propeller.problems.simple-classification-ryan/instructions
               :error-function          propeller.problems.simple-classification-ryan/error-function
               :training-data           (apply list teacher-cases)
@@ -576,22 +580,3 @@
       )))
 
 (main 2 10 15 2 example-test-cases)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-; add difference function so that we can use it for teacher mutate
-; (map - student-scores new-student-scores)
