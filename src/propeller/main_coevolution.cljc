@@ -13,7 +13,6 @@
 
 ; TODO list:
 ; TODO clean up reporting mechanisms
-; TODO make teacher genome length a passed in var instead of hardcoded!
 ; class clojure.lang.LazySeq cannot be cast to class java.lang.Number
 ; (clojure.lang.LazySeq is in unnamed module of loader 'app'; java.lang.Number is in module java.base of loader 'bootstrap')
 
@@ -26,6 +25,19 @@
 (def all-train-cases (:train propeller.problems.simple-classification-ryan/train-and-test-data))
 
 ;##############################################################################
+
+;important constants:
+(def teacher-genome-length 5)
+(def teacher-population-size 2)
+(def student-population-size 10)
+(def student-size 15)
+(def semesters 2)
+(def days-in-semester 2)
+(def teacher_selection_tournament_size 2)
+(def teacher_mutation_rate 0.1)
+(def teacher_mutation_max_increment 0.3)
+
+
 ; Helper Functions for Take N Functions
 
 ; inputs:
@@ -221,7 +233,7 @@
   ;for each test case, we choose it with probability index1 % from
   ;the first feature in its genome, probability index2 % from the second
   ;feature in its genome, etc.
-  (vec [100.0 0.0 0.0 0.0 0.0]))
+  (vec [1.0 0.0 0.0 0.0 0.0]))
 
 (defn random-from-probabilities [prob-vector]
   ;prob: [0.42, 0.21, ...]
@@ -325,7 +337,7 @@
   (vec [0.2, 0.2, 0.2, 0.2, 0.2]))
 
 (defn create-random-teacher-genome []
-  (vec (normalize (take 5 (repeatedly #(rand 1.0))))))
+  (vec (normalize (take teacher-genome-length (repeatedly #(rand 1.0))))))
 
 ;inputs:
 ;teacher-genome: the genome for a single teacher
@@ -451,11 +463,12 @@
       (print "my teacher: " (count teacher-cases) teacher-cases "\n")
 
       ;(Thread/sleep 5000)
+      ; calls the gp function to run it
       (gp/gp {:instructions            propeller.problems.simple-classification-ryan/instructions
               :error-function          propeller.problems.simple-classification-ryan/error-function
               :training-data           (apply list teacher-cases)
               :testing-data            (:test propeller.problems.simple-classification-ryan/train-and-test-data)
-              :max-generations         2
+              :max-generations         days-in-semester
               :population-size         (count students)
               :population              students ;test-student
               :step-limit              200
@@ -468,7 +481,7 @@
 #_(run-gp-loop example-students example-teacher-cases)
 
 ; Error Function
-; error function from regression backend code.
+; error function from regression backend code from gp
 ; output:
 ; - errors for each student, eg
 (defn error-function [all-test-cases student]
@@ -496,33 +509,85 @@
 ; shuffle student splits and send them to evolve
 ; output:
 ; - evolved students, eg '({:plushy (:in1 1 :integer_eq 0 :integer_subtract)} {:plushy (:integer_subtract :integer_quot)})
+; - amount of change for each student
+; - lowest error currently
 (defn evolve-students [teacher-population student-population all-test-cases test-case-performance]
   (do
     (print "evolving students..." "\n")
-    (let [combined-students (reduce concat student-population)
+    (let [; combine students so no longer in classes
+          combined-students (reduce concat student-population)
+          ; shuffle and split into new classes
           split-students
           (partition (/ (count combined-students) (count teacher-population))
                      ;shuffle students so teachers get different ones
                      (shuffle combined-students))
+          ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+          ; find best student in each class
+          best-student-errors-initial (map best-student-error split-students)
+          ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+          ; convert teacher weights to test cases
           teacher-cases
           (map #(teacher-to-cases %1 all-test-cases
                                   (vec (map vec %2))
                                   (/ (count combined-students) 2))
                teacher-population test-case-performance)
-          evolved-students (map run-gp-loop split-students teacher-cases)]
+          ; send teacher cases + student classes to gp
+          evolved-students (map run-gp-loop split-students teacher-cases)
+          ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+          ; see how much better best student is doing (may be a different student)
+          best-student-errors-final (map best-student-error evolved-students)
+          ; see how much errors have changed
+          best-student-deltas (map - best-student-errors-initial best-student-errors-final)
+          ; overall lowest error rn
+          best-student-error-overall (min best-student-errors-final)
+          ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+          ]
       (print "combined students: " (count combined-students) combined-students "\n")
       (print "split students: " (count split-students) split-students "\n")
       (print "teacher-cases: " (count teacher-cases) teacher-cases "\n")
       (print "evolved students: " (count evolved-students) evolved-students "\n")
-      evolved-students)))
+      ; return evolved students, amount of change, and lowest error
+      (list evolved-students best-student-deltas best-student-error-overall))))
 #_(evolve-students example-teacher-cases example-students example-all-test-cases example-test-case-performance)
 
+(defn bestTeacher [teachers]
+  "Returns the best of the given teachers."
+  (reduce (fn [i1 i2]
+            (if (< (:error i1) (:error i2))
+              i1
+              i2))
+          teachers))
+
+(defn selectTeacher [population]
+  "Returns an individual selected from population using a tournament."
+  (bestTeacher (repeatedly teacher_selection_tournament_size #(rand-nth population))))
+
+
+(defn mutate [teacher] ; with a certain probability, add a random value from 0 to X to each element and then normalize
+  (normalize (map #(if (> (rand) teacher_mutation_rate)
+                      (+ (* (rand) teacher_mutation_max_increment) %)
+                      %)
+                  teacher)))
+;(mutate base-teacher-vector)
+
+(defn evolve-teachers [teacher-population teacher_improvements]
+  (do
+    (print "evolving teachers...\n")
+    (let [population (map #({:genome %1 :error %2}) teacher-population teacher_improvements)] ;;combine (genome,error)
+      (repeatedly (count teacher-population)
+                  #(mutate (selectTeacher population)))
+      )))
+
+; find the error for a subgroup
+; I cannot remember what this returns, but replacing with best-student-error anyways
 (defn subgroup-error [all-test-cases student-subgroup]
   (do
     (apply (partial mapv vector) (vec (map #(vec (error-function all-test-cases %1)) student-subgroup)))
     ))
 
 ; evaluate students
+; input: list of students, split by class; list of test cases
+; output: list of errors, split by class
 (defn evaluate-students [all-test-cases student-population]
   (do (print "evaluating... \n")
       (print "current student pop:" student-population "\n")
@@ -530,7 +595,9 @@
       (map #(subgroup-error all-test-cases %1)
            student-population)))
 
+; Input: a list of all students, no classes; a list of all teachers
 (defn split-students [combined-students teacher-population]
+  ; shuffles students and splits them according to number of teachers
   (partition (/ (count combined-students) (count teacher-population))
              ; shuffle students so teachers get different ones
              (shuffle combined-students)))
@@ -539,10 +606,10 @@
 (defn main [teacher-population-size student-population-size student-size generations all-test-cases]
   ; loop until you hit generation limit
   (loop
-    ; student pop made using gp code
     [; create as many teachers as needed
      teacher-population (repeatedly teacher-population-size
                                     #(create-random-teacher-genome))
+     ; student pop made using gp code
      student-population
      (split-students (#?(:clj pmap :cljs map)
                        (fn [_] {:plushy
@@ -551,32 +618,54 @@
      ; keep track of scores
      student-scores (evaluate-students all-test-cases student-population)
      ; start at gen 0
-     generation 0]
-    ; TODO: report here potentially?
-    ; only continue if below gen count
-    (if (< generation generations)
+     generation 0
+     ;error of the best student of each semester, printed out at the end
+     ;a new number is conjed onto the end each semester
+     ;vector is initialized with the best error from the initial population
+     printout-error-vector (vec (min (map best-student-error student-population)))]
+    ; only continue if below gen count or not reached desired error
+    (if (or (< generation generations) (= (last printout-error-vector) 0))
       (do
         (print (str "on gen: " generation "\n"))
         (print "initial students: " (count student-population) student-population "\n")
         ; evolve students and pass on to relevant places
         (let [
-              new-student-population
+              ; evolved students with their improvements and overall lowest error
+              students-and-errors
               (evolve-students teacher-population student-population all-test-cases
                                student-scores)
-              new-student-scores (evaluate-students all-test-cases student-population)]
+              ; list of students split by class
+              new-student-population
+              (first students-and-errors)
+              ; list of student improvements split by class
+              student-deltas
+              (second students-and-errors)
+              ; lowest overall error
+              best-student-error-overall
+              (nth students-and-errors 2)]
 
 
           (recur
-            ; evolved student population
             ; evolved teacher population
             teacher-population; (map #(evolve-teacher) teacher-population (partition (count teacher-population) new-student-population)))
+            ; evolved student population
             new-student-population
             ; re-calculate student scores
             (evaluate-students all-test-cases new-student-population)
             ; increase gen
-            (inc generation))))
+            (inc generation)
+            ;add on to our printout error vector
+            (conj printout-error-vector best-student-error-overall)
+            )))
       ; loop is over, send back full eval
-      student-population
+      (do
+        (print "Errors of best student each semester: " printout-error-vector)
+        ; student-population)
+        (spit "./output.txt" "\n"  :append true)
+        (spit "./output.txt" printout-error-vector  :append true)
+        printout-error-vector)
       )))
 
 (main 2 10 15 2 example-test-cases)
+(main teacher-population-size student-population-size student-size semesters example-test-cases)
+
