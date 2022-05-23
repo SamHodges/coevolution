@@ -219,6 +219,8 @@
   (let [total (reduce + v)]
     (map #(/ % total) v)))
 
+;####### Every block marked with a ;LIST is related to the list implementation of a teacher. #######
+;LIST
 (def list-base-teacher-vector
   ;shuffled to make random teachers
   ;IF ADDING ANOTHER FEATURE, PUT IT IN THIS VECTOR
@@ -227,6 +229,7 @@
   ;                      return n test cases chosen in some specific way)
   (vec [take-n-easiest, take-n-hardest, take-n-most-variant, take-n-least-variant, take-n-random]))
 
+;LIST
 (def vector-of-weights
   ;weights, per index, for our teachers
   ;i.e. when we want to get n test cases from a given teacher,
@@ -235,6 +238,7 @@
   ;feature in its genome, etc.
   (vec [1.0 0.0 0.0 0.0 0.0]))
 
+;LIST
 (defn random-from-probabilities [prob-vector]
   ;prob: [0.42, 0.21, ...]
   ;https://stackoverflow.com/questions/14464011/idiomatic-clojure-for-picking-between-random-weighted-choices
@@ -246,10 +250,12 @@
         i
         (recur (inc i) (+ (prob-vector i) sum))))))
 
+;LIST
 (defn list-create-random-teacher-genome []
   ;returns a randomly created teacher genome
   (shuffle list-base-teacher-vector))
 
+;LIST
 ;inputs:
 ;teacher-genome: the genome for a single teacher
 ;all-test-cases: all the test cases (list of maps)
@@ -314,9 +320,11 @@
    {:input1 [-5] :output1 [21]}
    ])
 
+;LIST
 (def list-all-easiest-genome
   [take-n-easiest, take-n-hardest, take-n-most-variant, take-n-least-variant, take-n-random])
 
+;LIST
 (def list-all-random-genome
   [take-n-random, take-n-hardest, take-n-most-variant, take-n-least-variant, take-n-easiest])
 
