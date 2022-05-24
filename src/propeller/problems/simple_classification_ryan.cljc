@@ -71,11 +71,17 @@
                           1)))
                     correct-outputs
                     outputs)]
-    (assoc individual
+    (do
+      (print individual)
+      ;(print "inputs: " inputs "\n")
+      ;(print "correct: " correct-outputs "\n")
+      ;(print "outputs: " outputs "\n")
+      ;(print "\n just calculated error: " errors "\n")
+      (assoc individual
       :behaviors outputs
       :errors errors
       :total-error #?(:clj  (apply +' errors)
-                      :cljs (apply + errors)))))
+                      :cljs (apply + errors))))))
 
 ;(defn -main
 ;  "Runs propel-gp, giving it a map of arguments."

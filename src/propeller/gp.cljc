@@ -67,7 +67,7 @@
 (defn gp
   "Main GP loop."
   [{:keys [population population-size max-generations error-function
-            solution-error-threshold mapper]
+           solution-error-threshold mapper]
     :or   {solution-error-threshold 0.0
            ;; The `mapper` will perform a `map`-like operation to apply a function to every individual
            ;; in the population. The default is `map` but other options include `mapv`, or `pmap`.
@@ -95,9 +95,7 @@
                   (:total-error (error-function argmap (:testing-data argmap) best-individual))})
             (when (:simplification? argmap)
               (let [simplified-plushy (simplification/auto-simplify-plushy (:plushy best-individual) error-function argmap)]
-                (prn {:total-test-error-simplified (:total-error (error-function argmap (:testing-data argmap) (hash-map :plushy simplified-plushy)))})))
-            (print "DONE! \n")
-            population)
+                (prn {:total-test-error-simplified (:total-error (error-function argmap (:testing-data argmap) (hash-map :plushy simplified-plushy)))}))))
         ;;
         (>= generation max-generations)
         (do (print "This is the pop: \n")
@@ -111,8 +109,6 @@
                              (first evaluated-pop))
                        (repeatedly population-size
                                    #(variation/new-individual evaluated-pop argmap))))))))
-
-
 ;(defn gp-old
 ;  "Main GP loop."
 ;  [{:keys [population-size max-generations error-function instructions
