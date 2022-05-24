@@ -36,6 +36,7 @@
 (def teacher_selection_tournament_size 2)
 (def teacher_mutation_rate 0.2)
 (def teacher_mutation_max_increment 0.3)
+(def teacher-subset-size 5)
 
 
 ; Helper Functions for Take N Functions
@@ -373,7 +374,6 @@
           new-set-of-cases (conj final-set-of-cases chosen-test-case) ;return vector with our new case added on
           ]
       (do
-        (print "TEACHER TO CASES: " teacher-genome "\n")
         (if (= 1 num-left-to-choose)
           ;if we're done, exit the loop and return our final vector
           new-set-of-cases
@@ -459,15 +459,16 @@
 
     )
 
-; student-subgroup
-
 ; teacher
+
 (defn best-student-error
   [student-population]
-  (let [best (first (gp/sort-pop {:population     student-population
-                                  :error-function classification/error-function}))]
-    (:total-error best)
-    ))
+  (let [errors (map error-function all-train-cases student-population)
+        total-error (map #(apply + %1) errors)
+        ordered-pop (sort total-error)
+        best (first ordered-pop)]
+    (do (print "Best of pop: " best "\n")
+      best)))
 
 ; Run GP Loop
 ; Call GP to run a loop of student evolution
@@ -529,6 +530,10 @@
      errors)))
 #_(error-function example-all-test-cases example-student)
 
+(defn add-up-error [errors]
+  #?(:clj  (apply +' errors)
+     :cljs (apply + errors)))
+
 ; Evolve Students
 ; shuffle student splits and send them to evolve
 ; output:
@@ -553,7 +558,7 @@
           teacher-cases
           (map #(teacher-to-cases %1 all-test-cases
                                   (vec (map vec %2))
-                                  (/ (count combined-students) 2))
+                                  teacher-subset-size)
                teacher-population test-case-performance)
           ; send teacher cases + student classes to gp
           evolved-students (map run-gp-loop split-students teacher-cases)
@@ -593,7 +598,7 @@
 
 (defn selectTeacher [population]
   "Returns an individual selected from population using a tournament."
-  (do ;(print "\n in select teacher, pop: " population " \n")
+  (do (print "\n in select teacher, pop: " population " \n")
   (bestTeacher (repeatedly teacher_selection_tournament_size #(rand-nth population)))))
 
 
@@ -611,6 +616,7 @@
   (do
     ;(print "evolving teachers...\n")
     ;(print "teacher pop improvements" teacher-population teacher_improvements "\n")
+    (print "new pop: " (map create-teacher-map teacher-population teacher_improvements) "\n")
     (let [population (map create-teacher-map teacher-population teacher_improvements)] ;;combine (genome,error)
       ;(print "POP: " population "\n")
       (repeatedly (count teacher-population)
@@ -621,7 +627,7 @@
 ; I cannot remember what this returns, but replacing with best-student-error anyways
 (defn subgroup-error [all-test-cases student-subgroup]
   (do
-    (apply (partial mapv vector) (vec (map #(vec (error-function all-test-cases %1)) student-subgroup)))
+    (apply (partial mapv vector) (vec (map #(vec (error-function all-train-cases %1)) student-subgroup)))
     ))
 
 ; evaluate students
@@ -708,7 +714,7 @@
         printout-error-vector)
       )))
 
-(main 2 10 15 2 example-test-cases)
+(main 1 17 15 2 example-test-cases)
 (main teacher-population-size student-population-size student-size semesters all-train-cases)
 
 (evolve-teachers '([0 0 1] [1 0 0]) '(0 0))
