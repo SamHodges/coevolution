@@ -34,7 +34,7 @@
 (def semesters 2)
 (def days-in-semester 2)
 (def teacher_selection_tournament_size 2)
-(def teacher_mutation_rate 0.1)
+(def teacher_mutation_rate 0.2)
 (def teacher_mutation_max_increment 0.3)
 
 
@@ -460,6 +460,12 @@
 ; student-subgroup
 
 ; teacher
+(defn best-student-error
+  [student-population]
+  (let [best (first (gp/sort-pop {:population     student-population
+                                  :error-function classification/error-function}))]
+    (:total-error best)
+    ))
 
 ; Run GP Loop
 ; Call GP to run a loop of student evolution
@@ -553,22 +559,30 @@
       (print "combined students: " (count combined-students) combined-students "\n")
       (print "split students: " (count split-students) split-students "\n")
       (print "teacher-cases: " (count teacher-cases) teacher-cases "\n")
-      (print "evolved students: " (count evolved-students) evolved-students "\n")
+      (print "evolved students: " (count teacher-population) (count combined-students) (count evolved-students) evolved-students "\n")
       ; return evolved students, amount of change, and lowest error
       (list evolved-students best-student-deltas best-student-error-overall))))
 #_(evolve-students example-teacher-cases example-students example-all-test-cases example-test-case-performance)
 
 (defn bestTeacher [teachers]
   "Returns the best of the given teachers."
-  (reduce (fn [i1 i2]
-            (if (< (:error i1) (:error i2))
-              i1
-              i2))
-          teachers))
+  (do
+    (print "\n in best teacher \n")
+    (print "\n teachers: " teachers "\n")
+    (reduce test teachers)
+      ))
+
+(defn test [i1 i2]
+  (do
+    (print "\n errors: " (:error i1) (:error i2) "\n")
+    (if (< (:error i1) (:error i2))
+    (:genome i1)
+    (:genome i2))))
 
 (defn selectTeacher [population]
   "Returns an individual selected from population using a tournament."
-  (bestTeacher (repeatedly teacher_selection_tournament_size #(rand-nth population))))
+  (do (print "\n in select teacher \n"))
+  (bestTeacher (repeatedly teacher_selection_tournament_size #(rand-nth population)))))
 
 
 (defn mutate [teacher] ; with a certain probability, add a random value from 0 to X to each element and then normalize
@@ -581,6 +595,7 @@
 (defn evolve-teachers [teacher-population teacher_improvements]
   (do
     (print "evolving teachers...\n")
+    (print "teacher pop improvements" teacher-population)
     (let [population (map #({:genome %1 :error %2}) teacher-population teacher_improvements)] ;;combine (genome,error)
       (repeatedly (count teacher-population)
                   #(mutate (selectTeacher population)))
@@ -610,12 +625,7 @@
              ; shuffle students so teachers get different ones
              (shuffle combined-students)))
 
-(best-student-error
-  [student-population]
-  (let [best (first (gp/sort-pop {:population     student-population
-                                  :error-function classification/error-function}))]
-    (:total-error best)
-    ))
+
 
 
 
@@ -661,7 +671,9 @@
 
           (recur
             ; evolved teacher population
-            teacher-population; (map #(evolve-teacher) teacher-population (partition (count teacher-population) new-student-population)))
+            (do
+              (print "\n STUDENT DELTAS" student-deltas "\n")
+              (evolve-teachers teacher-population student-deltas)); (map #(evolve-teacher) teacher-population (partition (count teacher-population) new-student-population)))
             ; evolved student population
             new-student-population
             ; re-calculate student scores
@@ -683,3 +695,4 @@
 (main 2 10 15 2 example-test-cases)
 (main teacher-population-size student-population-size student-size semesters example-test-cases)
 
+(evolve-teachers '([0 0 1] [1 0 0]) '(0 0))
