@@ -28,11 +28,11 @@
 
 ;important constants:
 (def teacher-genome-length 5)
-(def teacher-population-size 2)
-(def student-population-size 10)
+(def teacher-population-size 5)
+(def student-population-size 100)
 (def student-size 15)
-(def semesters 2)
-(def days-in-semester 2)
+(def semesters 50)
+(def days-in-semester 500)
 (def teacher_selection_tournament_size 2)
 (def teacher_mutation_rate 0.2)
 (def teacher_mutation_max_increment 0.3)
@@ -243,12 +243,13 @@
   ;prob: [0.42, 0.21, ...]
   ;https://stackoverflow.com/questions/14464011/idiomatic-clojure-for-picking-between-random-weighted-choices
   ;returns index randomly chosen by prob
+  (do ;(print "PROB VECTOR: " prob-vector "\n")
   (let [total (reduce + prob-vector)
         r (rand total)]
     (loop [i 0 sum 0]
       (if (< r (+ (prob-vector i) sum))
         i
-        (recur (inc i) (+ (prob-vector i) sum))))))
+        (recur (inc i) (+ (prob-vector i) sum)))))))
 
 ;LIST
 (defn list-create-random-teacher-genome []
@@ -361,12 +362,12 @@
 ;has performance detailed in 'example-test-case-performance' ."
 (defn teacher-to-cases [teacher-genome, all-test-cases, test-case-performance, num-test-cases]
   ;returns list of n test cases, chosen according to the teacher's genome
-  (loop [remaining-test-cases all-test-cases ;test cases we have not selected already for returning
+    (loop [remaining-test-cases all-test-cases ;test cases we have not selected already for returning
          remaining-test-case-performance test-case-performance ;test case performance of test cases we have not selected
          num-left-to-choose num-test-cases ;how many cases we still need to add to the return vector
          final-set-of-cases (vector) ;the return vector, ends up as a list of length num-test-cases of distinct test cases
          ]
-    (let [chosen-feature-function (nth feature-functions (random-from-probabilities teacher-genome)) ;choose a feature function to use for this index
+    (let [chosen-feature-function (nth feature-functions (random-from-probabilities (vec teacher-genome))) ;choose a feature function to use for this index
           chosen-test-case (first (chosen-feature-function remaining-test-cases, remaining-test-case-performance, 1)) ;use it to pick a test case
           chosen-case-index (.indexOf remaining-test-cases chosen-test-case) ;helper to remove test case from remaining
           new-set-of-cases (conj final-set-of-cases chosen-test-case) ;return vector with our new case added on
@@ -384,8 +385,8 @@
                          (subvec remaining-test-case-performance (+ chosen-case-index 1) (count remaining-test-case-performance))))
             (- num-left-to-choose 1)
             new-set-of-cases) ;return vector with our newest case included
-          )
-        )
+          ))
+
       )
     )
   )
@@ -472,9 +473,9 @@
 ; output:
 ; - a list of evolved students, eg '({:plushy (:in1 1 :integer_eq 0 :integer_subtract)} {:plushy (:integer_subtract :integer_quot)})
 (defn run-gp-loop [students teacher-cases]
-  (do (print "running main gp loop... \n")
-      (print "my students: " (count students) students "\n")
-      (print "my teacher: " (count teacher-cases) teacher-cases "\n")
+  (do ;(print "running main gp loop... \n")
+      ;(print "my students: " (count students) students "\n")
+      ;(print "my teacher: " (count teacher-cases) teacher-cases "\n")
 
       ;(Thread/sleep 5000)
       ; calls the gp function to run it
@@ -527,7 +528,7 @@
 ; - lowest error currently
 (defn evolve-students [teacher-population student-population all-test-cases test-case-performance]
   (do
-    (print "evolving students..." "\n")
+    ;(print "evolving students..." "\n")
     (let [; combine students so no longer in classes
           combined-students (reduce concat student-population)
           ; shuffle and split into new classes
@@ -556,10 +557,10 @@
           best-student-error-overall (min best-student-errors-final)
           ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
           ]
-      (print "combined students: " (count combined-students) combined-students "\n")
-      (print "split students: " (count split-students) split-students "\n")
-      (print "teacher-cases: " (count teacher-cases) teacher-cases "\n")
-      (print "evolved students: " (count teacher-population) (count combined-students) (count evolved-students) evolved-students "\n")
+      ;(print "combined students: " (count combined-students) combined-students "\n")
+      ;(print "split students: " (count split-students) split-students "\n")
+      ;(print "teacher-cases: " (count teacher-cases) teacher-cases "\n")
+      ;(print "evolved students: " (count teacher-population) (count combined-students) (count evolved-students) evolved-students "\n")
       ; return evolved students, amount of change, and lowest error
       (list evolved-students best-student-deltas best-student-error-overall))))
 #_(evolve-students example-teacher-cases example-students example-all-test-cases example-test-case-performance)
@@ -567,21 +568,21 @@
 (defn bestTeacher [teachers]
   "Returns the best of the given teachers."
   (do
-    (print "\n in best teacher \n")
-    (print "\n teachers: " teachers "\n")
+    ;(print "\n in best teacher \n")
+    ;(print "\n teachers: " teachers "\n")
     (reduce test teachers)
       ))
 
 (defn test [i1 i2]
   (do
-    (print "\n errors: " (:error i1) (:error i2) "\n")
+    ;(print "\n errors: " (:error i1) (:error i2) "\n")
     (if (< (:error i1) (:error i2))
     (:genome i1)
     (:genome i2))))
 
 (defn selectTeacher [population]
   "Returns an individual selected from population using a tournament."
-  (do (print "\n in select teacher \n"))
+  (do ;(print "\n in select teacher, pop: " population " \n")
   (bestTeacher (repeatedly teacher_selection_tournament_size #(rand-nth population)))))
 
 
@@ -592,11 +593,15 @@
                   teacher)))
 ;(mutate base-teacher-vector)
 
+(defn create-teacher-map [teacher error]
+  {:genome teacher :error error})
+
 (defn evolve-teachers [teacher-population teacher_improvements]
   (do
-    (print "evolving teachers...\n")
-    (print "teacher pop improvements" teacher-population)
-    (let [population (map #({:genome %1 :error %2}) teacher-population teacher_improvements)] ;;combine (genome,error)
+    ;(print "evolving teachers...\n")
+    ;(print "teacher pop improvements" teacher-population teacher_improvements "\n")
+    (let [population (map create-teacher-map teacher-population teacher_improvements)] ;;combine (genome,error)
+      ;(print "POP: " population "\n")
       (repeatedly (count teacher-population)
                   #(mutate (selectTeacher population)))
       )))
@@ -612,8 +617,8 @@
 ; input: list of students, split by class; list of test cases
 ; output: list of errors, split by class
 (defn evaluate-students [all-test-cases student-population]
-  (do (print "evaluating... \n")
-      (print "current student pop:" student-population "\n")
+  (do ;(print "evaluating... \n")
+      ;(print "current student pop:" student-population "\n")
       ;(print error-function all-test-cases (first student-population))
       (map #(subgroup-error all-test-cases %1)
            student-population)))
@@ -646,12 +651,12 @@
      ;error of the best student of each semester, printed out at the end
      ;a new number is conjed onto the end each semester
      ;vector is initialized with the best error from the initial population
-     printout-error-vector (vec (min (map best-student-error student-population)))]
+     printout-error-vector [(min (map best-student-error student-population))]]
     ; only continue if below gen count or not reached desired error
     (if (or (< generation generations) (= (last printout-error-vector) 0))
       (do
         (print (str "on gen: " generation "\n"))
-        (print "initial students: " (count student-population) student-population "\n")
+        ;(print "initial students: " (count student-population) student-population "\n")
         ; evolve students and pass on to relevant places
         (let [
               ; evolved students with their improvements and overall lowest error
@@ -672,7 +677,7 @@
           (recur
             ; evolved teacher population
             (do
-              (print "\n STUDENT DELTAS" student-deltas "\n")
+              ;(print "\n STUDENT DELTAS" student-deltas "\n")
               (evolve-teachers teacher-population student-deltas)); (map #(evolve-teacher) teacher-population (partition (count teacher-population) new-student-population)))
             ; evolved student population
             new-student-population
