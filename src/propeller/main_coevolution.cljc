@@ -23,16 +23,16 @@
 ;##############################################################################
 
 (def all-train-cases (:train classification/train-and-test-data))
-
+(def all-test-cases (:test classification/train-and-test-data))
 ;##############################################################################
 
 ;important constants:
 (def teacher-genome-length 5)
-(def teacher-population-size 5)
+(def teacher-population-size 10)
 (def student-population-size 100)
 (def student-size 15)
 (def semesters 50)
-(def days-in-semester 500)
+(def days-in-semester 100)
 (def teacher_selection_tournament_size 2)
 (def teacher_mutation_rate 0.2)
 (def teacher_mutation_max_increment 0.3)
@@ -373,6 +373,7 @@
           new-set-of-cases (conj final-set-of-cases chosen-test-case) ;return vector with our new case added on
           ]
       (do
+        (print "TEACHER TO CASES: " teacher-genome "\n")
         (if (= 1 num-left-to-choose)
           ;if we're done, exit the loop and return our final vector
           new-set-of-cases
@@ -482,7 +483,7 @@
       (gp/gp {:instructions            classification/instructions
               :error-function          classification/error-function
               :training-data           (apply list teacher-cases)
-              :testing-data            (:test classification/train-and-test-data)
+              :testing-data            all-test-cases
               :max-generations         days-in-semester
               :population-size         (count students)
               :population              students ;test-student
@@ -500,7 +501,8 @@
 ; output:
 ; - errors for each student, eg
 (defn error-function [all-test-cases student]
-  (let [program (genome/plushy->push (:plushy student))
+  (do
+   (let [program (genome/plushy->push (:plushy student))
         inputs (map (fn [x] (first (:input1 x))) all-test-cases)
         correct-outputs (map (fn [x] (first (:output1 x))) all-test-cases)
         outputs (map (fn [input]
@@ -509,15 +511,22 @@
                            program
                            (assoc state/empty-state :input {:in1 input})
                            200)
-                         :integer))
+                         :boolean))
                      inputs)
         errors (map (fn [correct-output output]
-                      (if (= output :no-stack-item)
-                        1000000
-                        (math/abs (- correct-output output))))
-                    correct-outputs
-                    outputs)]
-    errors))
+                             (if (= output :no-stack-item)
+                               1000000
+                               (if (= correct-output output)
+                                 0
+                                 1)))
+                           correct-outputs
+                           outputs)]
+     ;(print "ERROR FUNCTION OUTPUT: "
+     ;       "INPUTS: " inputs "\n"
+     ;       "Correct: " correct-outputs "\n"
+     ;       "Outputs: " outputs "\n"
+     ;       errors "\n")
+     errors)))
 #_(error-function example-all-test-cases example-student)
 
 ; Evolve Students
@@ -565,20 +574,22 @@
       (list evolved-students best-student-deltas best-student-error-overall))))
 #_(evolve-students example-teacher-cases example-students example-all-test-cases example-test-case-performance)
 
+(defn tournament [i1 i2]
+  (do
+    ;(print "\n errors: " (:error i1) (:error i2) "\n")
+    (if (< (:error i1) (:error i2))
+      (:genome i1)
+      (:genome i2))))
+
 (defn bestTeacher [teachers]
   "Returns the best of the given teachers."
   (do
     ;(print "\n in best teacher \n")
     ;(print "\n teachers: " teachers "\n")
-    (reduce test teachers)
+    (reduce tournament teachers)
       ))
 
-(defn test [i1 i2]
-  (do
-    ;(print "\n errors: " (:error i1) (:error i2) "\n")
-    (if (< (:error i1) (:error i2))
-    (:genome i1)
-    (:genome i2))))
+
 
 (defn selectTeacher [population]
   "Returns an individual selected from population using a tournament."
@@ -698,6 +709,6 @@
       )))
 
 (main 2 10 15 2 example-test-cases)
-(main teacher-population-size student-population-size student-size semesters example-test-cases)
+(main teacher-population-size student-population-size student-size semesters all-train-cases)
 
 (evolve-teachers '([0 0 1] [1 0 0]) '(0 0))
